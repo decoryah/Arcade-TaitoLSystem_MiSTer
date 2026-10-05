@@ -1,0 +1,63 @@
+set_global_assignment -name SYSTEMVERILOG_FILE TaitoL.sv
+set_global_assignment -name SDC_FILE TaitoL.sdc
+set_global_assignment -name QIP_FILE rtl/pll.qip
+
+# the machine
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/taitol_ram.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/taitol_cen.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/taitol_vmem.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/taitol_bg.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/taitol_tx.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/taitol_spr.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/taitol_bm.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/taitol_video.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/taitol_vcore.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/taitol_cache.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/taitol_ctrl.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/taitol_main.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/taitol_board.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/taitol_sub.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/taitol_tri.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/taitol_syt.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/taitol_core.sv
+
+# tv80 Z80 (MIT, Guy Hutchison)
+set_global_assignment -name VERILOG_FILE modules/cpu-tv80/tv80_alu.v
+set_global_assignment -name VERILOG_FILE modules/cpu-tv80/tv80_core.v
+set_global_assignment -name VERILOG_FILE modules/cpu-tv80/tv80_mcode.v
+set_global_assignment -name VERILOG_FILE modules/cpu-tv80/tv80_reg.v
+set_global_assignment -name VERILOG_FILE modules/cpu-tv80/tv80s_cen.v
+
+# MiSTer platform layer
+set_global_assignment -name SYSTEMVERILOG_FILE target/mister/taitol_mem.sv
+set_global_assignment -name SYSTEMVERILOG_FILE target/mister/sdram_ctrl.sv
+
+# jt12 / jt03, YM2203 (GPL-3, Jose Tejada)
+set_global_assignment -name QIP_FILE modules/jt12/jt03.qip
+
+# jt49, the YM2203's SSG (GPL-3, Jose Tejada)
+set_global_assignment -name VERILOG_FILE modules/jt49/jt49.v
+set_global_assignment -name VERILOG_FILE modules/jt49/jt49_cen.v
+set_global_assignment -name VERILOG_FILE modules/jt49/jt49_div.v
+set_global_assignment -name VERILOG_FILE modules/jt49/jt49_eg.v
+set_global_assignment -name VERILOG_FILE modules/jt49/jt49_exp.v
+set_global_assignment -name VERILOG_FILE modules/jt49/jt49_noise.v
+
+# jt6805, the MC6805 core of Puzznic's MC68705 (GPL-3, Jose Tejada); 6805.vh / 6805_param.vh are generated, see modules/jt680x/UPSTREAM.txt
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/taitol_mcu.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/taitol_i8255.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/taitol_upd4701.sv
+set_global_assignment -name VERILOG_FILE modules/jt680x/jt6805.v
+set_global_assignment -name VERILOG_FILE modules/jt680x/jt6805_alu.v
+set_global_assignment -name VERILOG_FILE modules/jt680x/jt6805_ctrl.v
+set_global_assignment -name VERILOG_FILE modules/jt680x/jt6805_regs.v
+
+# jt5205, the MSM5205 of Champion Wrestler (GPL-3, Jose Tejada)
+set_global_assignment -name VERILOG_FILE modules/jt5205/jt5205.v
+set_global_assignment -name VERILOG_FILE modules/jt5205/jt5205_adpcm.v
+set_global_assignment -name VERILOG_FILE modules/jt5205/jt5205_timing.v
+set_global_assignment -name VERILOG_FILE modules/jt5205/jt5205_interpol2x.v
+
+# CRT Adjust (H-Size / H-Position / V-Shift for 15 kHz CRTs): rmonic79's module unmodified (GPL-3.0-or-later, modules/crt_adjust) and the core's glue
+set_global_assignment -name SYSTEMVERILOG_FILE modules/crt_adjust/crt_adjust.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/taitol_crt_adjust.sv

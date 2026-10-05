@@ -1,0 +1,3 @@
+crt_adjust.sv: MiSTer-CRT-Adjust by Umberto Parisi (rmonic79), GPL-3.0-or-later (the licence is in the file's header), copied unmodified from the
+copy used in the owner's Nostradamus / Magical Cat Adventure core. The core's glue is rtl/taitol_crt_adjust.sv (clock enables, the H-Position limits of
+the Taito L raster, the vertical blank of the line being read); it instantiates this module with HPOS_MODE = HPOS_SYNCSHIFT.

@@ -1,0 +1,71 @@
+<misterromdescription>
+    <rotation>horizontal</rotation>
+    <name>Champion Wrestler (World)</name>
+    <setname>champwr</setname>
+    <mameversion>0289</mameversion>
+    <year>1989</year>
+    <manufacturer>Taito</manufacturer>
+    <players>2</players>
+    <joystick>8</joystick>
+    <rbf>taitol</rbf>
+    <platform>Taito L</platform>
+
+    <!--
+      Flat image for the Taito L core (target/mister/taitol_mem.sv), the same for every set (tools/taitol_rom.py):
+        0x000000  0x100000  maincpu
+        0x100000  0x180000  maincpu:gfx
+        0x280000  0x080000  audiocpu
+        0x300000  0x020000  slave
+        0x320000  0x080000  adpcm
+        0x3A0000  0x000800  mcu:mcu
+        0x3A0800  0x000030  configuration: [0] board [1:2] 8x8 tiles [3:5] tile mask [6:8] program ROM mask [9] rotation [10] flags [16:42] controls
+
+      Expects the MAME 0.289 merged romset or the split sets: parts are found by name and CRC.
+      DIP switches (ioctl index 254): byte 0 is MAME's DSWA, byte 1 DSWB (a 1 is MAME's default setting).
+    -->
+    <switches default="FF,FF" base="16">
+        <dip bits="0" name="Unused" ids="On,Off"/>
+        <dip bits="1" name="Flip Screen" ids="On,Off"/>
+        <dip bits="2" name="Service Mode" ids="On,Off"/>
+        <dip bits="3" name="Demo Sounds" ids="Off,On"/>
+        <dip bits="4,5" name="Coin A" ids="4 Coins/1 Credit,3 Coins/1 Credit,2 Coins/1 Credit,1 Coin/1 Credit"/>
+        <dip bits="6,7" name="Coin B" ids="1 Coin/6 Credits,1 Coin/4 Credits,1 Coin/3 Credits,1 Coin/2 Credits"/>
+        <dip bits="8,9" name="Difficulty" ids="Hardest,Hard,Easy,Medium"/>
+        <dip bits="10,11" name="Time" ids="5 minutes,4 minutes,2 minutes,3 minutes"/>
+        <dip bits="12,13" name="'1 minute' Lasts:" ids="30 sec,40 sec,60 sec,50 sec"/>
+        <dip bits="14" name="Allow Continue" ids="Off,On"/>
+        <dip bits="15" name="Unused" ids="On,Off"/>
+    </switches>
+
+    <buttons names="Button 1,Button 2,Start,Coin" default="A,B,Start,Select"/>
+
+    <rom index="0" zip="champwr.zip" md5="None">
+
+        <!-- maincpu -->
+        <part name="c01-13.rom" crc="7ef47525"/>
+        <part name="c01-04.rom" crc="358bd076"/>
+        <part repeat="0xC0000">00</part>
+
+        <!-- maincpu:gfx -->
+        <part name="c01-01.rom" crc="f302e6e9"/>
+        <part name="c01-02.rom" crc="1e0476c4"/>
+        <part name="c01-03.rom" crc="2a142dbc"/>
+
+        <!-- audiocpu -->
+        <part name="c01-08.rom" crc="810efff8"/>
+        <part repeat="0x70000">00</part>
+
+        <!-- slave -->
+        <part name="c01-07.rom" crc="5117c98f"/>
+
+        <!-- adpcm -->
+        <part name="c01-05.rom" crc="22efad4a"/>
+        <part repeat="0x60000">00</part>
+
+        <!-- mcu:mcu -->
+        <part repeat="0x800">00</part>
+
+        <!-- configuration -->
+        <part>08 00 C0 FF FF 00 FF FF 03 00 00 00 00 00 00 00 06 05 11 12 0D 0C 14 13 10 0F 00 00 00 00 00 00 0B 0A 09 08 04 03 02 01 FF FF FF 00 00 00 00 00</part>
+    </rom>
+</misterromdescription>

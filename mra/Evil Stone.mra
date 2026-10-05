@@ -1,0 +1,70 @@
+<misterromdescription>
+    <rotation>vertical</rotation>
+    <name>Evil Stone</name>
+    <setname>evilston</setname>
+    <mameversion>0289</mameversion>
+    <year>1990</year>
+    <manufacturer>Spacy Industrial</manufacturer>
+    <players>2</players>
+    <joystick>8</joystick>
+    <rbf>taitol</rbf>
+    <platform>Taito L</platform>
+
+    <!--
+      Flat image for the Taito L core (target/mister/taitol_mem.sv), the same for every set (tools/taitol_rom.py):
+        0x000000  0x100000  maincpu
+        0x100000  0x180000  maincpu:gfx
+        0x280000  0x080000  audiocpu
+        0x300000  0x020000  slave
+        0x320000  0x080000  adpcm
+        0x3A0000  0x000800  mcu:mcu
+        0x3A0800  0x000030  configuration: [0] board [1:2] 8x8 tiles [3:5] tile mask [6:8] program ROM mask [9] rotation [10] flags [16:42] controls
+
+      Expects the MAME 0.289 merged romset or the split sets: parts are found by name and CRC.
+      DIP switches (ioctl index 254): byte 0 is MAME's DSWA, byte 1 DSWB (a 1 is MAME's default setting).
+    -->
+    <switches default="FE,3F" base="16">
+        <dip bits="0" name="Cabinet" ids="Upright,Cocktail"/>
+        <dip bits="1" name="Flip Screen" ids="On,Off"/>
+        <dip bits="2" name="Service Mode" ids="On,Off"/>
+        <dip bits="3" name="Demo Sounds" ids="Off,On"/>
+        <dip bits="4,5" name="Coin A" ids="4 Coins/1 Credit,3 Coins/1 Credit,2 Coins/1 Credit,1 Coin/1 Credit"/>
+        <dip bits="6,7" name="Coin B" ids="1 Coin/6 Credits,1 Coin/4 Credits,1 Coin/3 Credits,1 Coin/2 Credits"/>
+        <dip bits="8,9" name="Difficulty" ids="Hardest,Hard,Easy,Medium"/>
+        <dip bits="10" name="Unused" ids="On,Off"/>
+        <dip bits="11" name="Unused" ids="On,Off"/>
+        <dip bits="12,13" name="Lives" ids="4,1,2,3"/>
+        <dip bits="14,15" name="Language" ids="English,English,English,Japanese"/>
+    </switches>
+
+    <buttons names="Button 1,Button 2,Start,Coin" default="A,B,Start,Select"/>
+
+    <rom index="0" zip="evilston.zip" md5="None">
+
+        <!-- maincpu -->
+        <part name="c67-03.ic2" crc="53419982"/>
+        <part name="c67-04.ic6" crc="55d57e19"/>
+        <part repeat="0xC0000">00</part>
+
+        <!-- maincpu:gfx -->
+        <part name="c67-01.ic1" crc="2f351bf4"/>
+        <part name="c67-02.ic5" crc="eb4f895c"/>
+        <part repeat="0x80000">00</part>
+
+        <!-- audiocpu -->
+        <part name="c67-05.ic22" crc="94d3a642"/>
+        <part repeat="0x60000">00</part>
+
+        <!-- slave -->
+        <part repeat="0x20000">00</part>
+
+        <!-- adpcm -->
+        <part repeat="0x80000">00</part>
+
+        <!-- mcu:mcu -->
+        <part repeat="0x800">00</part>
+
+        <!-- configuration -->
+        <part>06 00 80 FF 7F 00 FF FF 03 03 00 00 00 00 00 00 05 06 00 11 0C 0D 00 12 14 13 0F 10 00 00 00 00 01 02 03 04 08 09 0A 0B BB 0F FF 00 00 00 00 00</part>
+    </rom>
+</misterromdescription>

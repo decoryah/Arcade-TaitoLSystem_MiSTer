@@ -1,0 +1,7 @@
+jt6805: Jose Tejada's MC6805 core, from jotego/jtcores modules/jt680x (GPL-3.0-or-later), copied unchanged from
+a clone of that repository. 6805.vh and 6805_param.vh are GENERATED from ucode/6805.yaml by
+`jtframe ucode jt680x 6805` (needs JTROOT, JTBIN, JTFRAME, MODULES, CORES set; run in a scratch copy of the module):
+they are not in the repository, so keep these files with the sources. The third generated file, 6805.uc (the microcode ROM,
+4096 x 39 bits, written next to the headers), is read by an `initial $readmemb` in 6805.vh: without it the core executes nothing
+(no error, just a warning). taitol edited that path to modules/jt680x/6805.uc: Quartus resolves it from the project directory
+(the repository root) and the Verilator scripts copy the file to that path under their working directory.
