@@ -63,3 +63,15 @@ set_multicycle_path -hold  3 -from $Z80 -to $Z80
 set YM [get_registers {*|jt03:*|*}]
 set_multicycle_path -setup 4 -from $YM -to $YM
 set_multicycle_path -hold  3 -from $YM -to $YM
+
+# ==============================================================================
+# The YM2610 (jt10, Raimais) runs on the 48 MHz clock, the PLL's third output, in phase with the 96 MHz one: the two are related, edge to
+# edge. Its registers step on clock enables, the fastest an 8 MHz one (6 clocks apart); the paths between them have at least that long.
+# What is NOT relaxed: the enables themselves (jt12_div's clk_en*, made on the falling edge, so a half-cycle path to every flip-flop they
+# enable), the reset (jt12_rst) and cen_reg, which must make it in one clock. (Same constraint as the owner's MCatAdv core.)
+# ==============================================================================
+set JT_ALL  [get_registers {*|jt10:*|*}]
+set JT_EN   [get_registers {*|jt10:*|*jt12_div:*|clk_en* *|jt10:*|*jt12_rst:*|rst_n *|jt10:*|*jt12_top:*|cen_reg}]
+set JT_DATA [remove_from_collection $JT_ALL $JT_EN]
+set_multicycle_path -setup 4 -from $JT_DATA -to $JT_ALL
+set_multicycle_path -hold  3 -from $JT_DATA -to $JT_ALL

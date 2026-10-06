@@ -1,0 +1,4 @@
+Local changes to the jt12 files (JT12 by Jose Tejada, GPL-3.0; this copy came with the MCatAdv Pocket core):
+  jt12_top.v   the ADPCM-B engine (jt10_adpcm_drvB) is instantiated again in the use_adpcm branch; the Pocket core's copy had it stubbed out (zeros).
+               Raimais' sound program plays ADPCM-B samples.
+Everything else is as copied; jt10.v / jt03.v are the wrappers the core instantiates.

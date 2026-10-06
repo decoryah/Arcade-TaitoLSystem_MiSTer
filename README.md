@@ -2,9 +2,9 @@
 
 The **Taito L System** (1988-1993) for the MiSTer FPGA platform: the TC0090LVC custom chip (a Z80 and the whole video
 section: two scrolling tile layers, a text layer, 125 sprites, a 256-colour palette and a bitmap mode) with, depending on the
-game, one to three Z80s, a YM2203 (or YM2610) and the board's I/O chips. Twenty-five MAME sets of twelve titles run: Plotting,
-Puzznic, Palamedes, Tube-It (with Cachat), Cuby Bop, Play Girls, Play Girls 2, American Horseshoes, Kuri Kinton, Evil Stone, Fighting Hawk and
-Champion Wrestler, with their other versions (regional versions and bootlegs: Flipull is Plotting's Japanese version, Cachat (Japan) the
+game, one to three Z80s, a YM2203 (or YM2610) and the board's I/O chips. Thirty-five MAME sets of thirteen titles run: Plotting,
+Puzznic, Palamedes, Tube-It (with Cachat), Cuby Bop, Play Girls, Play Girls 2, American Horseshoes, Kuri Kinton, Evil Stone, Fighting Hawk,
+Champion Wrestler and Raimais, with their other versions (regional versions and bootlegs: Flipull is Plotting's Japanese version, Cachat (Japan) the
 version of Tube-It, LA Girl a Play Girls bootleg, the Puzznic bootlegs).
 
 It is written for MiSTer from MAME's driver and device sources (`taito_l.cpp`, `tc009xlvc`, `taitosnd`, `taitoio`, the
@@ -17,19 +17,14 @@ No ROMs or other copyrighted data are in this repository; you supply your own MA
 
 ## Status
 
-**On a real MiSTer** (a CRT on the analog output and a RetroTINK 4K on Direct Video): all 25 sets boot and play. The DIP switches work,
-Flip Screen and Service Mode included; the sound is good in Champion Wrestler (ADPCM voices), Kuri Kinton, Evil Stone and Fighting Hawk;
-CRT Adjust works.
+**On a real MiSTer** (a CRT on the analog output and a RetroTINK 4K on Direct Video): all 35 sets boot and play. The DIP switches work, Flip Screen and
+Service Mode included; the sound is good in Champion Wrestler (ADPCM voices), Kuri Kinton, Evil Stone, Fighting Hawk and Raimais; CRT Adjust works.
 
 **In simulation** (Verilator, the real programs through the SDRAM controller and a behavioural chip), against MAME 0.289's dumps and
 snapshots: Plotting, Puzznic (with its MC68705), the Palamedes family, Cachat's bitmap mode, Play Girls, American Horseshoes with its
-trackball, Kuri Kinton and Evil Stone (two Z80s), Fighting Hawk and Champion Wrestler (three Z80s) match frame by frame or
+trackball, Kuri Kinton and Evil Stone (two Z80s), Fighting Hawk, Champion Wrestler and Raimais (three Z80s) match frame by frame or
 differ in explained one-frame transients and sub-frame interrupt phase; the per-set results are in `docs/status.md`. The picture is
-pixel-identical to MAME wherever the machine states agree.
-
-Not in this release: **Raimais** (video and CPUs run in simulation, but its YM2610 is not wired in: no sound, no MRA) and the variant sets
-Kuri Kinton (prototype, Japan, US, US World Games), Fighting Hawk (Japan), Champion Wrestler (Japan, US).
-`docs/status.md` lists these and the other open points.
+pixel-identical to MAME wherever the machine states agree. `docs/status.md` lists the open points.
 
 ## Install
 
@@ -40,13 +35,13 @@ The zip of a GitHub release unpacks over the root of the SD card. By hand:
    `<rbf>` name plus the date. **Delete older `taitol_*.rbf` files from the cores folder** (the test builds of this core were named
    `taitol_2610xx.rbf`; MiSTer may pick one of those instead of the new file).
 
-       /media/fat/_Arcade/<12 MRAs, one a title>.mra
+       /media/fat/_Arcade/<13 MRAs, one a title>.mra
        /media/fat/_Arcade/_alternatives/_<Title>/<other version>.mra
        /media/fat/_Arcade/cores/taitol_YYYYMMDD.rbf
 2. Put your MAME 0.289 romsets in `/media/fat/games/mame/` (the merged set, or the split sets next to their parents, see the table).
 3. Start a game from the Arcade menu. The ROM takes a few seconds to load.
 
-The 25 MRAs (`tools/make_mra.py` writes them from MAME's ROM lists and `-listxml` DIP switches; `tools/mra_verify.py` checks that
+The 35 MRAs (`tools/make_mra.py` writes them from MAME's ROM lists and `-listxml` DIP switches; `tools/mra_verify.py` checks that
 each builds the same image as the one the simulations ran): one MRA a title is in `mra/`, the other versions of the title in
 `mra/_alternatives/_<Title>/` (the title without its bracket: `_Puzznic` for `Puzznic (World).mra`), where MiSTer's menu keeps the alternative versions
 of a title. Tube-It is the title of the Cachat group (MAME's parent, Cachat (Japan), is its alternative).
@@ -69,9 +64,14 @@ of a title. Tube-It is the title of the Cachat group (MAME's parent, Cachat (Jap
 | &nbsp;&nbsp;Play Girls 2 (Japan) | plgirls2j | plgirls2j + plgirls2 | |
 | American Horseshoes (US) (vertical) | horshoes | horshoes | 1 CPU, uPD4701A trackball |
 | Kuri Kinton (World) | kurikint | kurikint | 2 Z80s, YM2203 |
+| &nbsp;&nbsp;Kuri Kinton (World, prototype), (Japan), (US), (US, World Games license) | kurikinta, kurikintj, kurikintu, kurikintw | each + kurikint | |
 | Evil Stone (vertical) | evilston | evilston | 2 Z80s, YM2203 |
 | Fighting Hawk (World) (vertical) | fhawk | fhawk | 3 Z80s, YM2203, PC060HA |
+| &nbsp;&nbsp;Fighting Hawk (Japan) | fhawkj | fhawkj + fhawk | |
 | Champion Wrestler (World) | champwr | champwr | 3 Z80s, YM2203, PC060HA, MSM5205 |
+| &nbsp;&nbsp;Champion Wrestler (Japan), (US) | champwrj, champwru | each + champwr | |
+| Raimais (World, rev 1) | raimais | raimais | 3 Z80s, YM2610, TC0140SYT |
+| &nbsp;&nbsp;Raimais (Japan, rev 1), (Japan) | raimaisj, raimaisjo | each + raimais | |
 
 ## OSD options
 
@@ -108,7 +108,8 @@ RetroTINK's picture; keep it Off there.
 
 ## Sound
 
-The YM2203 is jt03 and its SSG jt49 (Jose Tejada); the MSM5205 of Champion Wrestler is jt5205. Output levels follow MAME's mix: the FM with one gain, the SSG
+The YM2203 is jt03 and its SSG jt49 (Jose Tejada); Raimais' YM2610 is jt10 (the same author), on a 48 MHz clock of its own (the PLL's third output) with its
+ADPCM-A and ADPCM-B samples read from the SDRAM; the MSM5205 of Champion Wrestler is jt5205. Output levels follow MAME's mix: the FM with one gain, the SSG
 and the ADPCM with their own (matched against MAME's recorded output). The second and third Z80s have their own ROMs and the boards' communication chips
 (MB8421 dual-port RAM, PC060HA, TC0040IOC, TC0510NIO, TC0220IOC) are modelled after MAME.
 
@@ -118,8 +119,8 @@ Quartus Prime Lite 17.0.2 (MiSTer's toolchain):
 
     quartus_sh --flow compile TaitoL
 
-The released build (`releases/taitol_20261005.rbf`): 39 % of the ALMs (16,330 of 41,910), 450 of 553 RAM blocks (81 %), 38 of 112 DSPs; every setup slack is positive
-(the 96 MHz machine +0.51 ns, the HDMI scaler +0.32 ns, the raster clock +22.8 ns) and so is every hold slack (tightest 0.245 ns); `releases/*.summary` are the fitter's and the
+The released build (`releases/taitol_20261006.rbf`): 43 % of the ALMs (18,069 of 41,910), 477 of 553 RAM blocks (86 %), 43 of 112 DSPs; every setup slack is positive
+(the 96 MHz machine +0.90 ns, the YM2610's 48 MHz clock +1.74 ns, the HDMI scaler +0.55 ns, the raster clock +22.6 ns) and so is every hold slack (tightest 0.242 ns); `releases/*.summary` are the fitter's and the
 timing analyser's reports. Quartus's one critical warning is about the jt5205 step table's initialisation file (64 addresses in the design, 49 in the file: the
 MSM5205's ADPCM step table has 49 entries, the other addresses are never used).
 `tools/release.py` copies the RBF and the fitter's and timing analyser's summaries into `releases/`, `tools/package.py` makes the zip of a release in the SD
@@ -134,6 +135,8 @@ the repository; `tools/paths.py` says where the tools look for them and for `wor
     tools/rtlrun.py <set> ...        # whole-machine runs with MAME's default DIP switches, compared with MAME's dumps (tools/cmprtl.py)
     tools/mamedump.py <set> ...      # MAME's reference dumps and snapshots with the same scripted inputs
     tools/dipcheck.py <set> ...      # Service Mode / Flip Screen / Cabinet on, RTL against MAME
+    tools/ymcmp.py mame.log rtl.log  # the sound CPU's writes to the sound chip, MAME against the RTL (tools/mamedump.py --ymlog --wav, the bench's +ymlog)
+    tools/audiocmp.py mame.wav rtl.wav  # levels and band energies of two recordings
     sim/run_crt.sh                   # CRT Adjust: the raster through the module, shifts measured
     sim/run_mcu.sh                   # the Puzznic MCU alone
 

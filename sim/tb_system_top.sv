@@ -3,6 +3,7 @@
 `default_nettype none
 module tb_system_top (
     input  logic        clk,
+    input  logic        clk_ym,           // 48 MHz, in phase with clk
     input  logic        clk_vid,
 
     output logic        dl_wait,
@@ -15,8 +16,9 @@ module tb_system_top (
     output logic signed [15:0] snd_l, snd_r,
     output logic        snd_valid,
 
-    output logic        dbg_ovr, dbg_irq, dbg_m1, dbg_ym_wr, dbg_ym_a0,
+    output logic        dbg_ovr, dbg_irq, dbg_m1, dbg_ym_wr, dbg_ym_a0, dbg_ym_a1,
     output logic [7:0]  dbg_ym_d,
+    output logic [8:0]  dbg_pcm_max,
     output logic [3:0]  dbg_busy,
     output logic [3:0]  dbg_ovr_bits,
     output logic [15:0] cpu_a,
@@ -70,7 +72,7 @@ module tb_system_top (
     wire         dram_dqml, dram_dqmh, dram_ncs, dram_nras, dram_ncas, dram_nwe, dram_cke, dram_clk;
 
     logic        p_req, g0_req, g1_req, gs_req, s_req, a_req, m_req;
-    logic [16:4] m_addr;
+    logic [18:4] m_addr;
     logic        m_wr, m_done;
     logic  [2:0] m_idx;
     logic [15:0] m_data;
@@ -116,7 +118,7 @@ module tb_system_top (
     );
 
     taitol_core u_core (
-        .clk(clk), .clk_vid(clk_vid), .rst(rst), .vid_rst(vid_rst), .cache_inval(init),
+        .clk(clk), .clk_ym(clk_ym), .clk_vid(clk_vid), .rst(rst), .vid_rst(vid_rst), .cache_inval(init),
         .cfg_board(cfg_board), .cfg_pmask(cfg_pmask), .cfg_n8({1'b0, cfg_n8}), .cfg_rmask(cfg_rmask), .cfg_flags(cfg_flags), .opt_scr_latch(1'b0),
         .p_req(p_req), .p_addr(p_addr), .p_wr(p_wr), .p_idx(p_idx), .p_data(p_data), .p_done(p_done),
         .s_req(s_req), .s_addr(s_addr), .s_wr(s_wr), .s_idx(s_idx), .s_data(s_data), .s_done(s_done),
@@ -131,7 +133,7 @@ module tb_system_top (
         .tb_add_x(tb_ax), .tb_add_y(tb_ay), .tb_dx(tb_ddx), .tb_dy(tb_ddy),
         .ce_pix(ce_pix), .hblank(hblank), .vblank(vblank), .hsync(hsync), .vsync(vsync), .rgb(rgb),
         .snd_l(snd_l), .snd_r(snd_r), .snd_valid(snd_valid),
-        .dbg_ovr(dbg_ovr), .dbg_ovr_bits(dbg_ovr_bits), .dbg_busy(dbg_busy), .dbg_irq(dbg_irq), .dbg_m1(dbg_m1), .dbg_ym_wr(dbg_ym_wr), .dbg_ym_a0(dbg_ym_a0), .dbg_ym_d(dbg_ym_d)
+        .dbg_ovr(dbg_ovr), .dbg_ovr_bits(dbg_ovr_bits), .dbg_busy(dbg_busy), .dbg_irq(dbg_irq), .dbg_m1(dbg_m1), .dbg_ym_wr(dbg_ym_wr), .dbg_ym_a0(dbg_ym_a0), .dbg_ym_a1(dbg_ym_a1), .dbg_pcm_max(dbg_pcm_max), .dbg_ym_d(dbg_ym_d)
     );
     assign cpu_a  = u_core.u_main.A;
     assign cpu_rd = u_core.u_main.mem_rd;
@@ -181,7 +183,7 @@ module tb_system_top (
 `ifdef NOYM
         return 0;
 `else
-        return {22'd0, u_core.u_board.u_ym.psg_snd};
+        return (cfg_board == 4'd9) ? {22'd0, u_core.u_board.psg10} : {22'd0, u_core.u_board.u_ym.psg_snd};      // Raimais: the YM2610's SSG
 `endif
     endfunction
     export "DPI-C" function tb_ym_fm;
@@ -189,7 +191,7 @@ module tb_system_top (
 `ifdef NOYM
         return 0;
 `else
-        return int'(signed'(u_core.u_board.u_ym.fm_snd));
+        return (cfg_board == 4'd9) ? int'(signed'(u_core.u_board.fm10_s)) : int'(signed'(u_core.u_board.u_ym.fm_snd));      // Raimais: FM + ADPCM, both sides
 `endif
     endfunction
     // scroll registers and the raster line, for the bench's tearing log

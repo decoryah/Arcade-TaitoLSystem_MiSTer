@@ -1,5 +1,5 @@
-// The slave and sound Z80s of the 3-CPU boards (7 = Fighting Hawk, 8 = Champion Wrestler; 9 = Raimais is wired but its YM2610 is
-// not in yet). MAME: fhawk_2_map / fhawk_3_map, champwr_2_map / champwr_3_map, raimais_2_map / raimais_3_map.
+// The slave and sound Z80s of the 3-CPU boards (7 = Fighting Hawk, 8 = Champion Wrestler, 9 = Raimais, whose sound chip is a YM2610 in
+// the board module). MAME: fhawk_2_map / fhawk_3_map, champwr_2_map / champwr_3_map, raimais_2_map / raimais_3_map.
 //
 //   slave Z80 (12 MHz / 3), vblank interrupt held until acknowledged:
 //     fhawk    0000-7FFF ROM, 8000-BFFF ROM bank n (16 KB units, C000 write), C800 PC060HA port, C801 comm,
@@ -40,12 +40,22 @@ module taitol_tri (
     input  logic        s_wr,   input logic [2:0] s_idx, input logic [15:0] s_data, input logic s_done,
     output logic        a_req,  output logic [15:4] a_addr,
     input  logic        a_wr,   input logic [2:0] a_idx, input logic [15:0] a_data, input logic a_done,
-    output logic        m_req,  output logic [16:4] m_addr,         // the ADPCM ROM (Champion Wrestler)
+    output logic        m_req,  output logic [18:4] m_addr,         // the ADPCM ROM (Champion Wrestler: the MSM5205's, 128 KB; Raimais: the YM2610's ADPCM-A, 512 KB)
     input  logic        m_wr,   input logic [2:0] m_idx, input logic [15:0] m_data, input logic m_done,
     output logic signed [15:0] msm_snd,                             // the MSM5205, volume applied, in the YM mix's units
+    // Raimais: the YM2610's ADPCM-A reads the same ROM through the same cache (the chip samples the byte at its next enable, 1.5 us after
+    // the address changes, and gets the cache's byte: the cache is filled within that time or the sample is wrong)
+    input  logic        pcm_rd,
+    input  logic [18:0] pcm_addr,
+    output logic  [7:0] pcm_q,
+    input  logic        pcmb_rd,              // ... and its ADPCM-B, which reads the same ROM (MAME: no ADPCM-B region, so the ADPCM-A one)
+    input  logic [18:0] pcmb_addr,
+    output logic  [7:0] pcmb_q,
+    output logic  [8:0] dbg_pcm_max,          // debug: the longest wait (machine clocks) of an ADPCM-A read for its cache line
 
     // the sound chip on the sound Z80's bus
     output logic        ym_rd, ym_wr, ym_a0,
+    output logic  [1:0] ym_a,                 // the YM2610's two address bits
     output logic [7:0]  ym_wdata,
     input  logic [7:0]  ym_q,
     input  logic        ym_irq_n,
@@ -240,6 +250,7 @@ module taitol_tri (
     assign ym_rd = au_rd & au_ym;
     assign ym_wr = au_wr & au_ym;
     assign ym_a0 = au_a[0];
+    assign ym_a  = au_a[1:0];
     assign ym_wdata = au_dout;
     always_comb begin
         au_di = 8'h00;
@@ -287,10 +298,31 @@ module taitol_tri (
             if (ym_pb_we && champ) msm_vol <= ym_pb_d;
         end
     end
-    taitol_cache #(.AB(17)) u_mcache (
-        .clk(clk), .inval(cache_inval), .rd(fetch), .addr(msm_pos), .hit(m_hit), .data(m_q),
-        .fill_req(m_req), .fill_addr(m_addr), .fill_wr(m_wr), .fill_idx(m_idx), .fill_data(m_data), .fill_done(m_done)
+    // two caches on the one SDRAM client: A (the MSM5205's / the YM2610's ADPCM-A) and B (the YM2610's ADPCM-B); a burst belongs to the cache the
+    // request came from, and a request that comes while the other cache's burst is on waits for its end
+    logic        fA_req, fB_req, gB = 1'b0;
+    logic [18:4] fA_addr, fB_addr;
+    always_ff @(posedge clk) if (!m_req) gB <= fB_req & ~fA_req;
+    assign m_req  = gB ? fB_req  : fA_req;
+    assign m_addr = gB ? fB_addr : fA_addr;
+    taitol_cache #(.AB(19)) u_mcache (
+        .clk(clk), .inval(cache_inval), .rd(raim ? pcm_rd : fetch), .addr(raim ? pcm_addr : {2'b00, msm_pos}), .hit(m_hit), .data(m_q),
+        .fill_req(fA_req), .fill_addr(fA_addr), .fill_wr(m_wr & ~gB), .fill_idx(m_idx), .fill_data(m_data), .fill_done(m_done & ~gB)
     );
+    assign pcm_q = m_q;
+    logic [7:0] mb_q;
+    logic       mb_hit;
+    taitol_cache #(.AB(19)) u_bcache (
+        .clk(clk), .inval(cache_inval), .rd(pcmb_rd & raim), .addr(pcmb_addr), .hit(mb_hit), .data(mb_q),
+        .fill_req(fB_req), .fill_addr(fB_addr), .fill_wr(m_wr & gB), .fill_idx(m_idx), .fill_data(m_data), .fill_done(m_done & gB)
+    );
+    assign pcmb_q = mb_q;
+    logic [8:0] pcm_run = 9'd0, pcm_max = 9'd0;
+    always_ff @(posedge clk) begin
+        if (raim && pcm_rd && !m_hit) begin if (pcm_run != 9'h1FF) pcm_run <= pcm_run + 9'd1; end
+        else begin if (pcm_run > pcm_max) pcm_max <= pcm_run; pcm_run <= 9'd0; end
+    end
+    assign dbg_pcm_max = pcm_max;
     // MAME: the MSM5205 output is its 12 bit signal x 16, route 0.80, and the volume (data / 255); the board's sum is followed by
     // the core's x3.33, so the signal x 16 x 0.8 / 3.33 = x 3.84; the first measurement against MAME's output found the voice bands 4-5 dB
     // too loud, so the factor is x2.25
@@ -302,6 +334,6 @@ module taitol_tri (
     always_ff @(posedge clk) msm_snd_q <= champ ? ((msm_vs <<< 1) + (msm_vs >>> 2)) : 16'sd0;      // x2.25: measured +4.5 dB hot at x3.875 against MAME
     assign msm_snd = msm_snd_q;
 
-    wire unused = ^{sh_qa, ym_pb_we, ym_pb_d};
+    wire unused = ^{sh_qa, ym_pb_we, ym_pb_d, mb_hit};
 endmodule
 `default_nettype wire

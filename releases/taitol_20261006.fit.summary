@@ -1,17 +1,17 @@
-Fitter Status : Successful - Mon Oct 05 22:58:27 2026
+Fitter Status : Successful - Tue Oct 06 06:48:30 2026
 Quartus Prime Version : 17.0.2 Build 602 07/19/2017 SJ Lite Edition
 Revision Name : TaitoL
 Top-level Entity Name : sys_top
 Family : Cyclone V
 Device : 5CSEBA6U23I7
 Timing Models : Final
-Logic utilization (in ALMs) : 16,330 / 41,910 ( 39 % )
-Total registers : 20007
+Logic utilization (in ALMs) : 18,069 / 41,910 ( 43 % )
+Total registers : 22319
 Total pins : 145 / 314 ( 46 % )
 Total virtual pins : 0
-Total block memory bits : 3,351,100 / 5,662,720 ( 59 % )
-Total RAM Blocks : 450 / 553 ( 81 % )
-Total DSP Blocks : 38 / 112 ( 34 % )
+Total block memory bits : 3,434,344 / 5,662,720 ( 61 % )
+Total RAM Blocks : 477 / 553 ( 86 % )
+Total DSP Blocks : 43 / 112 ( 38 % )
 Total HSSI RX PCSs : 0
 Total HSSI PMA RX Deserializers : 0
 Total HSSI TX PCSs : 0

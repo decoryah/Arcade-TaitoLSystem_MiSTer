@@ -31,7 +31,8 @@ OUTDIR = os.path.join(paths.REPO, 'mra')
 SUPPORTED = ['plotting', 'plottinga', 'plottingb', 'plottingu', 'flipull',
              'puzznic', 'puzznicu', 'puzznicj', 'puzznici', 'puzznicb', 'puzznicba',
              'palamed', 'palamedj', 'tubeit', 'cachat', 'cubybop', 'plgirls', 'plgirls2', 'plgirls2j', 'lagirl',
-             'horshoes', 'kurikint', 'evilston', 'fhawk', 'champwr']
+             'horshoes', 'kurikint', 'kurikinta', 'kurikintj', 'kurikintu', 'kurikintw', 'evilston', 'fhawk', 'fhawkj',
+             'champwr', 'champwrj', 'champwru', 'raimais', 'raimaisj', 'raimaisjo']
 
 ORDER = ['maincpu', 'maincpu:gfx', 'audiocpu', 'slave', 'adpcm', 'mcu:mcu']     # slot order in the image
 

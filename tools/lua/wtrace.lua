@@ -5,12 +5,12 @@ local m   = manager.machine
 local cpu = m.devices[":maincpu"]
 local prog = cpu.spaces["program"]
 local scr = m.screens[":screen"]
-local out = assert(io.open(os.getenv("TL_OUT") or "wtrace.txt", "w"))
+local out = assert(io.open(os.getenv("TL_WLOG") or os.getenv("TL_OUT") or "wtrace.txt", "w"))
 local maxf = tonumber(os.getenv("TL_FRAMES_MAX") or "60")
 local n = 0
-local taps = {}
+TAPS = {}
 for lo, hi in string.gmatch(os.getenv("TL_RANGES") or "8000-ffff", "(%x+)-(%x+)") do
-  table.insert(taps, prog:install_write_tap(tonumber(lo, 16), tonumber(hi, 16), "w" .. lo, function(offset, data, mask)
+  table.insert(TAPS, prog:install_write_tap(tonumber(lo, 16), tonumber(hi, 16), "w" .. lo, function(offset, data, mask)
     local f = scr:frame_number()
     if f <= maxf and n < 400000 then
       out:write(string.format("W %04x %02x  (frame %d)\n", offset, data & 0xff, f))

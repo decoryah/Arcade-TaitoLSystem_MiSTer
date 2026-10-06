@@ -24,12 +24,15 @@
 // The 3-CPU boards (7 = Fighting Hawk, 8 = Champion Wrestler, 9 = Raimais) add a slave and a sound Z80 (taitol_tri): the main
 // CPU has a RAM it shares with the slave (7: 8000-9FFF, 8: A000-BFFF, 9: the MB8421 at 8000-87FF), a private RAM (7: A000-BFFF,
 // 8: 8000-9FFF, 9: A000-BFFF) and on Raimais the TC0040IOC at 8800/8801 and the TC0140SYT at 8C00 (port) / 8C01 (communication).
+// Raimais' sound chip is a YM2610 (jt10, 8 MHz) on the sound Z80's bus at E000-E003; its ADPCM-A samples come out of the SDRAM through
+// the cache in taitol_tri.
 //
 // American Horseshoes (board 4) is the Plotting board plus a uPD4701A trackball counter at A800-A803 (taitol_upd4701) and a
 // graphics bank register: a write to B802 ORs (data << 12) into the background tiles' codes and (data << 10) into the sprites'.
 `default_nettype none
 module taitol_board (
     input  logic        clk,
+    input  logic        clk_ym,               // 48 MHz, in phase with clk: Raimais' YM2610
     input  logic        rst,
     input  logic        cen_ym,               // 3.33264 MHz
     input  logic        cen_mcu,              // 3.579545 MHz: Puzznic's MC68705
@@ -60,7 +63,7 @@ module taitol_board (
     input  logic        s_wr,   input logic [2:0] s_idx, input logic [15:0] s_data, input logic s_done,
     output logic        a_req,  output logic [15:4] a_addr,
     input  logic        a_wr,   input logic [2:0] a_idx, input logic [15:0] a_data, input logic a_done,
-    output logic        m_req,  output logic [16:4] m_addr,
+    output logic        m_req,  output logic [18:4] m_addr,
     input  logic        m_wr,   input logic [2:0] m_idx, input logic [15:0] m_data, input logic m_done,
 
     // the sound / second Z80's ROM (the image's audiocpu region, first 64 KB)
@@ -78,6 +81,8 @@ module taitol_board (
     output logic        snd_sample,
     output logic        dbg_ym_wr,
     output logic        dbg_ym_a0,
+    output logic        dbg_ym_a1,
+    output logic  [8:0] dbg_pcm_max,
     output logic [7:0]  dbg_ym_d
 );
     // ---------------------------------------------------------------- work RAM
@@ -101,6 +106,7 @@ module taitol_board (
     wire        sndcpu = two || is3cpu;
     wire        sel_ym = (ext_a[15:2] == 14'h2800) && !sndcpu;          // A000-A003
     logic       t_ym_rd, t_ym_wr, t_ym_a0;                              // the 3-CPU boards' sound Z80
+    logic [1:0] t_ym_a;
     logic [7:0] t_ym_wdata;
     logic       s_ym_sel, s_ym_rd, s_ym_wr, s_ym_a0;                   // the second Z80's access
     logic [7:0] s_ym_wdata;
@@ -114,6 +120,7 @@ module taitol_board (
     always_ff @(posedge clk) if (ym_wr_i & ~ym_a0_i) ym_regsel <= ym_din_i;
     wire        ym_pa_we = ym_wr_i & ym_a0_i & (ym_regsel == 8'h0E);
     wire        ym_pb_we = ym_wr_i & ym_a0_i & (ym_regsel == 8'h0F);
+    wire        raim = (board == 4'd9);                                  // the YM2610 board
     logic       ym_irq_n;
     logic       mux_sel;                                                // 0: DSWA / IN0, 1: DSWB / IN1
     always_ff @(posedge clk) begin
@@ -125,6 +132,12 @@ module taitol_board (
     wire [7:0] iob = direct ? dswb : (mux_sel ? in1  : in0);
 
     logic [7:0] ym_q;
+    logic        pcm_rd;                                                    // Raimais' ADPCM-A reads (taitol_tri's cache)
+    logic [18:0] pcm_addr;
+    logic  [7:0] pcm_q;
+    logic        pcmb_rd;                                                   // ... and its ADPCM-B
+    logic [18:0] pcmb_addr;
+    logic  [7:0] pcmb_q;
 `ifdef NOYM
     // simulation speed-up: no sound chip (the I/O ports are still read through it, so they are modelled here)
     logic [7:0] ym_reg;
@@ -133,27 +146,84 @@ module taitol_board (
     assign snd = 16'sd0;
     assign snd_sample = 1'b0;
     assign ym_irq_n = 1'b1;
+    assign pcm_rd   = 1'b0;
+    assign pcm_addr = 19'd0;
+    assign pcmb_rd   = 1'b0;
+    assign pcmb_addr = 19'd0;
 `else
     logic signed [15:0] fm_w;
     logic        [9:0]  psg_w;
+    logic [7:0] q03, q10;
+    logic       irq03_n, irq10_n;
+    logic       snd_sample03, snd_sample10;
     jt03 u_ym (
         .rst(rst_q), .clk(clk), .cen(cen_ym_i),
-        .din(ym_din_i), .addr(ym_a0_i), .cs_n(~(ym_rd_i | ym_wr_i)), .wr_n(~ym_wr_i),
-        .dout(ym_q), .irq_n(ym_irq_n),
+        .din(ym_din_i), .addr(ym_a0_i), .cs_n(~((ym_rd_i | ym_wr_i) & ~raim)), .wr_n(~ym_wr_i),
+        .dout(q03), .irq_n(irq03_n),
         .IOA_in(ioa), .IOB_in(iob),
-        .psg_A(), .psg_B(), .psg_C(), .fm_snd(fm_w), .psg_snd(psg_w), .snd(), .snd_sample(snd_sample),
+        .psg_A(), .psg_B(), .psg_C(), .fm_snd(fm_w), .psg_snd(psg_w), .snd(), .snd_sample(snd_sample03),
         .debug_view()
     );
+
+    // Raimais: the YM2610, on the 48 MHz clock (the PLL's third output, in phase with the 96 MHz one) with its own 8 MHz enable: jt12_div and
+    // jt12_rst make their enables on the falling edge, a half-cycle path to every flip-flop they enable, 5 ns at 96 MHz (TaitoL.sdc). The Z80's
+    // side of the chip (address, data, strobes: held for whole Z80 cycles) and the sample reads cross between the two clocks of one PLL,
+    // edge to edge. FM and ADPCM come out left and right (snd_left / snd_right include the SSG, psg << 5, which is taken out again below);
+    // MAME's routes into one speaker: the SSG 0.75, the left and the right 1.0 each.
+    logic [2:0]  ydiv = 3'd0;
+    logic        cen_ym48 = 1'b0;
+    always_ff @(posedge clk_ym) begin
+        ydiv     <= (ydiv == 3'd5) ? 3'd0 : ydiv + 3'd1;
+        cen_ym48 <= (ydiv == 3'd5);
+    end
+    logic        rst_ym = 1'b1;                                          // the reset, registered on the chip's clock
+    always_ff @(posedge clk_ym) rst_ym <= rst_q;
+    logic [19:0] adpcma_addr;
+    logic [23:0] adpcmb_addr;
+    logic [3:0]  adpcma_bank;
+    logic        adpcma_roe_n;
+    logic signed [15:0] ym10_l, ym10_r;
+    logic        [9:0]  psg10;
+    jt10 u_ym10 (
+        .rst(rst_ym), .clk(clk_ym), .cen(cen_ym48),
+        .din(ym_din_i), .addr(t_ym_a), .cs_n(~((ym_rd_i | ym_wr_i) & raim)), .wr_n(~ym_wr_i),
+        .dout(q10), .irq_n(irq10_n),
+        .adpcma_addr(adpcma_addr), .adpcma_bank(adpcma_bank), .adpcma_roe_n(adpcma_roe_n), .adpcma_data(pcm_q),
+        .adpcmb_addr(adpcmb_addr), .adpcmb_roe_n(), .adpcmb_data(pcmb_q),
+        .psg_A(), .psg_B(), .psg_C(), .fm_snd(), .psg_snd(psg10), .snd_right(ym10_r), .snd_left(ym10_l), .snd_sample(snd_sample10)
+    );
+    assign pcm_rd   = ~adpcma_roe_n & raim;
+    assign pcm_addr = adpcma_addr[18:0];
+    assign pcmb_rd   = raim;                                                // the cache follows whatever address ADPCM-B shows
+    assign pcmb_addr = adpcmb_addr[18:0];
+    assign ym_q = raim ? q10 : q03;
+    assign ym_irq_n = raim ? irq10_n : irq03_n;
+    assign snd_sample = raim ? smp10_d : snd_sample03;
     // jt03 sums the FM section and the SSG (psg << 5); on the board the two reach the amplifier through different resistors
     // (MAME: SSG channels 0.20, FM 0.80). Measured against MAME's own output (Kuri Kinton music, Plotting: tools/audiocmp.py,
     // docs/status.md): with the FM section at the core's gain the SSG wants 10.4 per raw unit, i.e. 3.125 per unit before it.
     wire        [12:0] psg_adj = {psg_w, 1'b0} + {3'b000, psg_w} + {6'b000000, psg_w[9:3]};            // psg * 3 + psg / 8 = 3.125 psg
     logic signed [15:0] snd_mix;                                    // registered: the core multiplies this by 3.33 right after (96 MHz timing)
-    always_ff @(posedge clk) snd_mix <= fm_w + $signed({3'b000, psg_adj}) + msm_snd;
+    wire signed [15:0] psg10_s = $signed({1'b0, psg10, 5'd0});
+    wire signed [16:0] fm10_s  = (ym10_l - psg10_s) + (ym10_r - psg10_s);                          // FM + ADPCM, both sides
+    // MAME (ymfm) into one speaker: SSG route 0.75 of (a + b + c) * 2/3 (a jt49 level is 64.25 ymfm steps: 42.8 per unit of psg_snd) and the left and
+    // right FM + ADPCM at 1.0 each, jt10's units being ymfm's (the same figures as the owner's MCatAdv core, whose YM2610 is checked on hardware);
+    // the core multiplies by 3.33 right after: SSG 0.75 * 42.8 / 3.33 = 9.64 per unit (9.625), FM + ADPCM (L + R) / 3.33 = 0.3 (0.297)
+    wire        [13:0] psg10_a = {psg10, 3'b000} + {4'b0000, psg10} + {5'b00000, psg10[9:1]} + {7'b0000000, psg10[9:3]};   // x9.625
+    wire signed [16:0] fm10_a  = (fm10_s >>> 2) + (fm10_s >>> 5) + (fm10_s >>> 6);                                       // x0.297
+    // made on the chip's clock (20 ns for the adders), handed over registered at each sample
+    logic signed [15:0] mix10;
+    logic               smp10_d = 1'b0;
+    always_ff @(posedge clk_ym) begin
+        smp10_d <= snd_sample10;
+        if (snd_sample10) mix10 <= fm10_a + $signed({2'b00, psg10_a});
+    end
+    always_ff @(posedge clk) snd_mix <= raim ? mix10 : (fm_w + $signed({3'b000, psg_adj}) + msm_snd);
     assign snd = snd_mix;
 `endif
     assign dbg_ym_wr = ym_wr_i;
     assign dbg_ym_a0 = ym_a0_i;
+    assign dbg_ym_a1 = raim ? t_ym_a[1] : 1'b0;
     assign dbg_ym_d  = ym_din_i;
 
     // ---------------------------------------------------------------- bus
@@ -238,7 +308,8 @@ module taitol_board (
         .s_req(s_req), .s_addr(s_addr), .s_wr(s_wr), .s_idx(s_idx), .s_data(s_data), .s_done(s_done),
         .a_req(a_req), .a_addr(a_addr), .a_wr(a_wr), .a_idx(a_idx), .a_data(a_data), .a_done(a_done),
         .m_req(m_req), .m_addr(m_addr), .m_wr(m_wr), .m_idx(m_idx), .m_data(m_data), .m_done(m_done), .msm_snd(msm_snd),
-        .ym_rd(t_ym_rd), .ym_wr(t_ym_wr), .ym_a0(t_ym_a0), .ym_wdata(t_ym_wdata), .ym_q(ym_q), .ym_irq_n(ym_irq_n),
+        .pcm_rd(pcm_rd), .pcm_addr(pcm_addr), .pcm_q(pcm_q), .pcmb_rd(pcmb_rd), .pcmb_addr(pcmb_addr), .pcmb_q(pcmb_q), .dbg_pcm_max(dbg_pcm_max),
+        .ym_rd(t_ym_rd), .ym_wr(t_ym_wr), .ym_a0(t_ym_a0), .ym_a(t_ym_a), .ym_wdata(t_ym_wdata), .ym_q(ym_q), .ym_irq_n(ym_irq_n),
         .ym_pa_we(ym_pa_we), .ym_pa_d(ym_din_i), .ym_pb_we(ym_pb_we), .ym_pb_d(ym_din_i)
     );
 

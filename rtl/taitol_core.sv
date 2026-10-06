@@ -5,6 +5,7 @@ module taitol_core #(
     parameter [24:1] GFX_BASE = 24'h080000
 ) (
     input  logic        clk,
+    input  logic        clk_ym,               // 48 MHz, in phase with clk (the same PLL): the YM2610
     input  logic        clk_vid,
     input  logic        rst,                  // the machine
     input  logic        vid_rst,              // the video renderers (normally = rst)
@@ -27,7 +28,7 @@ module taitol_core #(
     input  logic        s_wr,   input logic [2:0] s_idx,  input logic [15:0] s_data,  input logic s_done,
     output logic        a_req,  output logic [15:4] a_addr,         // sound Z80 ROM
     input  logic        a_wr,   input logic [2:0] a_idx,  input logic [15:0] a_data,  input logic a_done,
-    output logic        m_req,  output logic [16:4] m_addr,         // ADPCM ROM (Champion Wrestler)
+    output logic        m_req,  output logic [18:4] m_addr,         // ADPCM ROM (Champion Wrestler's MSM5205, Raimais' YM2610 ADPCM-A)
     input  logic        m_wr,   input logic [2:0] m_idx,  input logic [15:0] m_data,  input logic m_done,
     output logic        g0_req, output logic [24:1] g0_addr,
     input  logic        g0_wr,  input logic [1:0] g0_idx, input logic [15:0] g0_data, input logic g0_done,
@@ -69,6 +70,8 @@ module taitol_core #(
     output logic        dbg_m1,
     output logic        dbg_ym_wr,
     output logic        dbg_ym_a0,
+    output logic        dbg_ym_a1,
+    output logic  [8:0] dbg_pcm_max,
     output logic [7:0]  dbg_ym_d
 );
     logic cen_cpu, cen_ym1, cen_z80b, cen_ym2, cen_ym2610, cen_mcu;
@@ -138,7 +141,7 @@ module taitol_core #(
     logic signed [15:0] snd;
     logic        snd_sample;
     taitol_board u_board (
-        .clk(clk), .rst(rst), .cen_ym(cen_ym1), .cen_mcu(cen_mcu), .board(cfg_board),
+        .clk(clk), .clk_ym(clk_ym), .rst(rst), .cen_ym(cen_ym1), .cen_mcu(cen_mcu), .board(cfg_board),
         .ext_rd(ext_rd), .ext_wr(ext_wr), .ext_a(ext_a), .ext_wdata(ext_wdata), .ext_rdata(ext_rdata),
         .dswa(dswa), .dswb(dswb), .in0(in0), .in1(in1), .in2(in2),
         .mcu_we(mcu_we), .mcu_waddr(mcu_waddr), .mcu_wdata(mcu_wdata),
@@ -149,7 +152,7 @@ module taitol_core #(
         .sub_we(sub_we), .sub_waddr(sub_waddr), .sub_wdata(sub_wdata),
         .cen_ym2(cen_ym2), .cen_sub(cen_z80b), .vbl_pulse(copy),
         .tb_add_x(tb_add_x), .tb_dx(tb_dx), .tb_add_y(tb_add_y), .tb_dy(tb_dy), .gbank(gbank),
-        .snd(snd), .snd_sample(snd_sample), .dbg_ym_wr(dbg_ym_wr), .dbg_ym_a0(dbg_ym_a0), .dbg_ym_d(dbg_ym_d)
+        .snd(snd), .snd_sample(snd_sample), .dbg_ym_wr(dbg_ym_wr), .dbg_ym_a0(dbg_ym_a0), .dbg_ym_a1(dbg_ym_a1), .dbg_pcm_max(dbg_pcm_max), .dbg_ym_d(dbg_ym_d)
     );
     // jt03's mix is 10.5 dB (x3.33) below MAME's for the same register writes: measured in simulation on the real
     // program (tools/audiocmp.py on 5 s of Plotting's coin sound and music: the energy ratio is the same -10 dB in every

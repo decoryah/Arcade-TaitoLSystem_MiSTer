@@ -214,12 +214,35 @@ if( use_adpcm==1 ) begin: gen_adpcm
         .ch_enable  ( ch_enable     )
     );
 
-    // ADPCM-B stubbed (no ROM on mcatadv; saves Cyclone V LABs)
-    assign adpcmB_l     = 'd0;
-    assign adpcmB_r     = 'd0;
-    assign adpcmb_addr  = 'd0;
-    assign adpcmb_roe_n = 1'b1;
-    assign adpcmb_flag  = 1'b0;
+    // ADPCM-B: the copy of this file from the MCatAdv Pocket core stubbed it (no ROM there, saves Cyclone V LABs); Raimais' sound program uses it, so it is
+    // instantiated as in the original JT12 (and the owner's MiSTer MCatAdv core's copy).
+    jt10_adpcm_drvB u_adpcm_b(
+        .rst_n      ( rst_n         ),
+        .clk        ( clk           ),
+        .cen        ( cen_reg       ),
+        .cen55      ( clk_en_55     ),
+
+        // Control
+        .acmd_on_b  ( acmd_on_b     ),  // Control - Process start, Key On
+        .acmd_rep_b ( acmd_rep_b    ),  // Control - Repeat
+        .acmd_rst_b ( acmd_rst_b    ),  // Control - Reset
+        .acmd_up_b  ( acmd_up_b     ),  // Control - New command received
+        .alr_b      ( alr_b         ),  // Left / Right
+        .astart_b   ( astart_b      ),  // Start address
+        .aend_b     ( aend_b        ),  // End   address
+        .adeltan_b  ( adeltan_b     ),  // Delta-N
+        .aeg_b      ( aeg_b         ),  // Envelope Generator Control
+        // Flag
+        .flag       ( adpcmb_flag   ),
+        .clr_flag   ( flag_ctl[6]   ),
+        // memory
+        .addr       ( adpcmb_addr   ),
+        .data       ( adpcmb_data   ),
+        .roe_n      ( adpcmb_roe_n  ),
+
+        .pcm55_l    ( adpcmB_l      ),
+        .pcm55_r    ( adpcmB_r      )
+    );
 
     assign snd_sample   = zero;
     // ADPCM-A into the mix. (The Pocket core's copy of this file fed zeros here: its PSRAM could not meet the

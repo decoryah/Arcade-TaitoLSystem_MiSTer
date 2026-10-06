@@ -15,7 +15,7 @@ see `tools/paths.py`).
 | ROM images | `tools/taitol_rom.py check <set> <dump>` | program and graphics regions byte-identical to MAME's own regions (plotting, plottinga incl. the bit-reversal) |
 | MRAs | `tools/mra_build.py` on each generated MRA vs `taitol_rom.py build` | identical images: Plotting set 1, set 2 (protected), set 3, US, Flipull |
 | **Whole machine, attract** | `sim/run_system.sh` (image through the SDRAM controller and a behavioural chip; Z80, banking, interrupts, VRAM window, palette, YM2203 port reads) booting the real program | the *displayed* frame 300 (TAITO logo, through raster / line buffers / mixer) is **pixel-identical** to MAME's frame 300 for **all five sets** (plotting, plottinga, plottingb, plottingu, flipull) |
-| **Whole machine, coin and play** | same, with a scripted coin at frame 320 and 1P start at 345 (`+coin=320 +start=345`), MAME given the same inputs | RTL machine state rendered by the reference renderer is pixel-identical to MAME's snapshot at frames 331, 360, 361, 420, 421, 500, 501, 560, 561; VRAM and palette byte-identical at 331. At frame 330 the CREDIT text differs by 56 bytes (the update lands one frame apart: a scheduling difference, gone a frame later) |
+| **Whole machine, coin and play** | same, with a scripted coin at frame 320 and 1P start at 345 (`+coin=320 +start=345`), MAME given the same inputs | RTL machine state rendered by the reference renderer was pixel-identical to MAME's snapshot at frames 331, 360, 361, 420, 421, 500, 501, 560, 561 (first session, Plotting only). Re-run on 2026-10-06 with the raster that is in the core now (both the 261007 and the 20261006 simulators): identical at 300, but a one-frame CREDIT-text transient at 331 (375 px, 48 VRAM bytes: the update lands one frame apart, a scheduling difference gone a frame later) |
 | Boot timeline | RTL trace vs MAME state dumps | ROM bank 4 selected at frame 6 in both |
 | YM2203 board path | `sim/run_board.sh`: the DIP/input mux reads via A000-A003 and a programmed SSG tone | all four mux reads correct; tone produced |
 | Audio vs MAME | `tools/audiocmp.py` on 5 s of MAME's `-wavwrite` vs the RTL's (same inputs, coin sound + game music) | timing and spectrum match; level was a constant -10.5 dB (the same in every band, SSG and FM): fixed with a x3.33 gain in `taitol_core`; after it RMS ratio 0.99-1.01 and every band within about +-2 dB (checked offline on the recorded WAV; the in-core gain is the same arithmetic) |
@@ -43,7 +43,6 @@ frame compared.
 | evilston (2 Z80s) | 6 | identical at 300, 331, 360 (VRAM 418 B), 420, 560; 32 px at 500 |
 | fhawk (3 Z80s, ROT270, sound chip stubbed) | 7 | identical at 300, 360, 500, 560; one-frame transients at 331 (230 px) and 420 (1,024 px) |
 | champwr (3 Z80s, no ADPCM) | 8 | **identical at all six frames** |
-| raimais (3 Z80s, **no sound chip yet**: its YM2610 is not in) | 9 | identical at 300 and 500; one-frame transients at 331, 360, 420, 560 (6,397 / 498 / 305 / 424 px) |
 
 **DIP switches (checked after the first hardware test, 2026-10-05).** The MRAs' switch definitions come from MAME's `-listxml` and their default bytes were
 compared with MAME's own read-out; non-default settings had not been tried until the owner reported no service menu in Cuby Bop. `tools/dipcheck.py` now
@@ -93,7 +92,8 @@ Direct Video the two are fed the very same stream.
 | 261004 (Plotting only) | all Plotting MRAs: picture and sound good |
 | 261005, 261006 (all sets) | every MRA boots and plays; the DIP switches work, Flip Screen and Service Mode included; sound good in Champion Wrestler (ADPCM voices), Kuri Kinton, Evil Stone and Fighting Hawk. Faults: at random, for a few seconds, striping / streaks / a vertical roll (every board, CRT and 4K alike; a restart of the game usually cured it); vertical games upside down on the RetroTINK 4K; the CRT picture a little low |
 | 261007 | **the shaking is gone** (the fix below). CRT Adjust works |
-| 20261005 (this release) | 261007 plus a longer V-Shift (-32..+31 lines) and the rotation direction of the HDMI scaler path put back to what MAME's orientation says. **Not yet run on hardware** |
+| 20261005 | 261007 plus a longer V-Shift (-32..+31 lines) and the rotation direction of the HDMI scaler path put back to what MAME's orientation says. Tested by the owner on the CRT and the RetroTINK 4K (Direct Video); the scaler rotation path (Direct Video off) was not part of that test |
+| 20261006 (this release) | 20261005 plus Raimais with its YM2610, the other versions of Kuri Kinton, Fighting Hawk and Champion Wrestler (10 sets), and a third PLL output for the YM2610. Tested by the owner on the CRT and the RetroTINK 4K: Raimais and the other new sets work |
 
 **The random shaking was a real bug in the raster-to-machine event crossing** (found from two phone videos of Puzznic and Cachat). For a few seconds at
 a time the picture striped (alternate lines from the wrong place), streaked (grass colours in the sky) or *rolled vertically* (the HUD at the bottom of
@@ -127,31 +127,75 @@ the HSync 6 pixels; V-Shift +3 moves the VSync 3 lines, +31 by 31, -16 by -16, -
 beyond the H-Position limit of the raster are clamped. V-Shift delays the VSync by N lines (+) or advances it (-); by the CRT's timing a *later* VSync leaves less
 blank between the retrace and the picture, so + should lift the picture and - lower it (not yet confirmed on the CRT).
 
-**Quartus, release 20261005** (`releases/taitol_20261005.rbf`, `quartus_sh --flow compile TaitoL`; the fitter's and the timing analyser's reports are
-`releases/taitol_20261005.fit.summary` and `.sta.summary`): 39 % of the ALMs (16,330 of 41,910), 450 of 553 RAM blocks (81 %), 38 of 112 DSPs, 40 timing entries, none negative: every setup slack is positive (the 96 MHz machine +0.51 ns,
-the HDMI scaler +0.32 ns, the raster clock +22.8 ns), tightest hold 0.245 ns.
+**Quartus, release 20261006** (`releases/taitol_20261006.rbf`, `quartus_sh --flow compile TaitoL`; the fitter's and the timing analyser's reports are
+`releases/taitol_20261006.fit.summary` and `.sta.summary`): 43 % of the ALMs (18,069 of 41,910), 477 of 553 RAM blocks (86 %), 43 of 112 DSPs, 45 timing entries, none negative: every setup slack
+is positive (the 96 MHz machine +0.90 ns, the YM2610's 48 MHz +1.74 ns, the HDMI scaler +0.55 ns, the raster clock +22.6 ns), tightest hold 0.242 ns.
+
+## Raimais, its YM2610, and the other versions of Kuri Kinton, Fighting Hawk and Champion Wrestler (release 20261006)
+
+Ten sets were added: Raimais (World rev 1, Japan rev 1, Japan), Kuri Kinton (prototype, Japan, US, US World Games), Fighting Hawk (Japan) and Champion
+Wrestler (Japan, US). The other versions run on boards that already existed; their MRAs are made by `tools/make_mra.py` and each image is byte-identical to the
+one the simulation used (`tools/mra_verify.py`, all 35 MRAs). The owner ran all ten on a real MiSTer (CRT and RetroTINK 4K) and they work.
+
+**Pictures and machine states against MAME** (`tools/rtlrun.py`, `tools/cmprtl.py`, MAME's default DIP switches, coin at frame 320, 1P start at 345; the sound
+chips stubbed out, as in the first batches):
+
+| Set | Result |
+|---|---|
+| raimais | identical at 300, 420, 500, 560; one-frame transients at 331 (6,397 px) and 360 (498 px) |
+| raimaisj, raimaisjo | identical at 300, 331, 360, 420, 560; 633 px at 500 |
+| kurikinta, kurikintj, kurikintu, kurikintw | as kurikint: identical at 300, 331, 360 (the prototype also at 420), 2 px at 420 in the others; 500 / 560 (run for the prototype and the Japan set) show the demo's scroll a few pixels apart (about 20-25 k px), as the parent |
+| fhawkj | identical at 300, 331, 360, 420 (these four sets were run to frame 425) |
+| champwrj, champwru | pictures identical at 300, 331, 360, 420 (champwru: 226 VRAM bytes of state differ for one frame at 331, the picture does not) |
+
+Regression of the new memory arbiter and sound wiring on the other boards (frames 300 and 331): kurikint, puzznicu and champwr identical; fhawk has its known 230 px
+transient at 331. Plotting at 331 shows a one-frame CREDIT-text transient (375 px, 48 VRAM bytes), the same with the simulator of the previous release: it is
+not from this change (the older claim of an identical 331 predates the raster that is in the core now).
+
+**The YM2610.** jt10 (jt12 tree of the YM2203's jt03) at 8 MHz on the sound Z80's bus (E000-E003, the YM2610's IRQ is the Z80's INT, F200 is the audio ROM bank, the
+TC0140SYT gives the NMI and the reset). Its ADPCM-A *and* ADPCM-B read the 512 KB `ymsnd:adpcma` ROM (MAME gives the ADPCM-B the ADPCM-A region when a set has no ADPCM-B
+one; Raimais' sound program starts both) through two 8 KB direct-mapped caches that share one SDRAM client; that client has the arbiter's top priority now, because the
+chip wants each ADPCM-A byte within 1.5 us (144 machine clocks) of its address. Measured in the simulation with the video's traffic on the bus: the longest wait of an
+ADPCM-A read for its cache line was **33 machine clocks**.
+*Clock:* the first compile, with jt10 on the 96 MHz machine clock, failed setup by 1.665 ns inside jt12_pg (the multicycle constraint of the YM2203 covers only jt03's
+instance, and jt12_div / jt12_rst make their enables on the falling edge, a half-cycle path to every flip-flop they enable). As in the owner's MCatAdv core the chip now runs
+on the PLL's third output, 48 MHz in phase with the 96 MHz one (`rtl/pll.v` is that core's), with its own 8 MHz enable, and `TaitoL.sdc` relaxes the paths between its registers
+while the enables, the reset and `cen_reg` stay single-cycle. The Z80's side of the chip and the sample reads cross between the two clocks edge to edge.
+*Mix* (`taitol_board.sv`): MAME's routes into one speaker are the SSG 0.75 of (a + b + c) * 2/3 and the FM + ADPCM left and right at 1.0 each; with jt10's units equal to ymfm's
+(the MCatAdv core's figures) and the core's x3.33 gain that is 9.625 per unit of the SSG's `psg_snd` and 0.297 for (left + right).
+
+**Sound against MAME** (Raimais, MAME's default switches, coin at 320, 600 frames; `tools/mamedump.py --ymlog --wav`, the bench's `+ymlog`, `tools/ymcmp.py`, `tools/audiocmp.py`):
+* The sound CPU's writes to the chip are identical, in order, for the first 916 writes after the 60 Hz timer reload pairs (register 27 = 15) are left out: boot, FM and ADPCM
+  set-up and the first sounds (MAME frames 3 to 365). Then the games diverge in *time*: the main CPU hands the coin's sound command to the communication chip at frame 325
+  in the RTL, 323 in MAME (the later commands come a frame earlier), the same few frames as the pictures' one-frame transients; the sound CPU answers each command correctly.
+* **Levels, after the one-to-two frame offset**: RMS of the RTL / MAME per 0.5 s window from 8.5 to 11 s, where ADPCM-B plays too: 1.01, 1.01, 1.02, 0.99, 1.00 (overall **1.005, 0.0 dB**);
+  per 1 s window from 5 to 9 s (before ADPCM-B comes in): 0.96, 1.04, 1.01, 1.01. The band energies (60 Hz - 12 kHz) agree within +-3 dB, the 8-12 kHz band is 3-4.5 dB higher in the RTL.
+  Waveform cross-correlation at the best lag (1-2 frames): 0.83 / 0.92 / 0.86 for FM + ADPCM-A in 5.2-6.6 / 6.6-8.0 / 8.0-9.4 s; 0.66 in 9.3-10.6 s, where ADPCM-B starts, against 0.47
+  with ADPCM-B stubbed out (the level in that window was 0.77 without it).
+* **ADPCM-B**: the copy of jt12 the core had (from the Pocket core) had the ADPCM-B engine stubbed out; the sound log showed Raimais starting ADPCM-B samples at MAME frame 558, so it is instantiated again
+  in `modules/jt12/jt12_top.v` (`modules/jt12/LOCAL_CHANGES.txt`) and reads the same ROM through its own cache.
+* The SSG is not exercised in the first 12 s of the attract mode (no register 0-15 write), so its level is by calculation (the owner's MCatAdv core, checked on hardware, uses the same
+  figures), not measured here.
 
 ## Quartus 17.0.2 (MiSTer's toolchain)
 
 `quartus_sh --flow compile TaitoL` in the repository root: about 20 minutes on an idle machine, up to an hour with other builds running. Do not touch the
 project's files (`files.qip`, `TaitoL.qsf`, ...) while it runs: the flow then fails at the very end ("Settings File changed outside of Quartus"). The
-fractional PLL gives exactly 26.66112 MHz (fit report). Block RAM is the resource to watch (81 % in the release). `tools/release.py` copies the RBF and
+fractional PLL gives exactly 26.66112 MHz (fit report). Block RAM is the resource to watch (86 % in the release). `tools/release.py` copies the RBF and
 the fitter's and the timing analyser's summaries into `releases/`; `tools/package.py` makes the zip in the SD card structure.
 
 ## Known gaps and guesses
 
-* **Raimais** (3 Z80s and a YM2610): the video and the CPUs run in simulation, but its YM2610 is not wired in, so it has no sound, and it has no MRA. The
-  parts exist in `modules/jt12` (jt10); the ADPCM-A samples would need another SDRAM cache client.
-* **Variant sets not in the MRAs and not simulated**: Kuri Kinton (prototype, Japan, US, US World Games license), Fighting Hawk (Japan), Champion Wrestler
-  (Japan, US) and the Raimais sets. They run on the boards that are implemented; each needs its MRA written (`tools/make_mra.py` `SUPPORTED`) and a run
-  against MAME.
+* **Raimais' YM2610**: the SSG level is by calculation (Raimais' first 12 s of attract mode use no SSG, so the simulation could not measure it),
+  its FM, ADPCM-A and ADPCM-B levels are measured against MAME (see above); on the MiSTer the owner found the sound good. ADPCM-A / B ROM reads past the 512 KB region wrap around (MAME reads open bus there); the game does not do it.
+* The jt12 copy's other local simplifications (the ADPCM-A channel-enable register is fixed to all channels: `ch_enable`) are unchanged from the Pocket core's copy; Raimais does not need them.
 * **Video timing** (424 x 262 at 6.66528 MHz) is backed by Guru's real Puzznic PCB measurement in MAME's source (VSync 59.9992 Hz at a 13.3304 MHz
   oscillator; the quoted 15.419 kHz "HSync" is a composite-sync pulse count, see `docs/hardware.md` 3.9b). Where the interrupts sit relative to the
   picture (levels at raster lines 120, 0, 240) is MAME's choice, not hardware knowledge.
 * **Rotation through the HDMI scaler** (Direct Video off) is checked in Python only (see above), not on hardware.
 * **MAME's own gaps** in the TC0090LVC model (Cuby Bop's text colours and scrolling, ignored control registers): "identical to MAME" is the bar, not
   "identical to the board".
-* **Sound levels** are matched to MAME's final mix with constants (FM x3.33, SSG x3.125, MSM5205 x2.25), not by modelling MAME's per-channel routing; the
+* **Sound levels** are matched to MAME's final mix with constants (YM2203: FM x3.33, SSG x3.125; MSM5205 x2.25; YM2610: FM + ADPCM x0.297 per side, SSG x9.625), not by modelling MAME's per-channel routing; the
   owner found the sound good on the four games listed above, the others were not compared by ear.
 * The trackball direction of American Horseshoes with a real mouse is unverified (MAME's analog injection is verified; the mouse-to-counter mapping and
   the OSD invert option are not testable in the simulation).

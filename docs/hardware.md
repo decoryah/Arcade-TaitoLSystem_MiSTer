@@ -203,6 +203,9 @@ What is still MAME's choice, not hardware knowledge, is where the three interrup
 | 4 | horshoes | + uPD4701A trackball (`taitol_upd4701`), B802 graphics bank |
 | 5 | kurikint* | second Z80 (`taitol_sub`, 4 MHz) with the YM2203, MB8421 dual-port RAM (A000-A7FF here, E000-E7FF there), TC0040IOC at A800/A801 |
 | 6 | evilston | as 5 with a 48 KB sub ROM and TC0510NIO at A800-A807 |
+| 7 | fhawk, fhawkj | a slave Z80 and a sound Z80 (`taitol_tri`, 4 MHz each, ROMs in SDRAM behind 8 KB caches): RAM shared with the main CPU, TC0220IOC on the slave, PC060HA (`taitol_syt`) between the slave and the sound CPU, YM2203 on the sound CPU (its port A is the audio ROM bank) |
+| 8 | champwr, champwrj, champwru | as 7 plus the MSM5205 (`jt5205`, 384 kHz): its 4-bit samples come from the ADPCM ROM (SDRAM, cache), the YM2203's port B is its volume |
+| 9 | raimais, raimaisj, raimaisjo | the slave Z80 shares the MB8421 (left port E000-E7FF), the main CPU has the TC0040IOC at 8800 and the TC0140SYT (`taitol_syt`) at 8C00 / 8C01 towards the sound Z80 (NMI and reset), whose YM2610 (`jt10`, 8 MHz) sits at E000-E003 and bank-switches its ROM with a write to F200; the ADPCM-A and ADPCM-B samples (the same 512 KB ROM: MAME gives the ADPCM-B the ADPCM-A region when a set has no ADPCM-B one) are read through two caches on the one SDRAM client the MSM5205 uses, which has the arbiter's top priority: the ADPCM-A wants each byte within 1.5 us (the longest wait measured: 33 of 144 machine clocks) |
 
 The sub CPU's interrupt is `irq0_line_hold` at the start of vblank (held until acknowledged; the acknowledge supplies FF).
 The TC0040IOC is "select a register at A801, read / write it at A800"; its register 4 (coin lockout / counters) is the only one

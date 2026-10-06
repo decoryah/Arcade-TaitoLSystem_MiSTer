@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
     Vtb_system_top* t = new Vtb_system_top;
     svSetScope(svGetScopeFromName("TOP.tb_system_top"));
 
-    t->clk = 0; t->clk_vid = 0;
+    t->clk = 0; t->clk_vid = 0; t->clk_ym = 0;
     tb_set_ctl(1, 1, 1);                     // rst, vid_rst, init
     tb_set_in(dswa, dswb, 0);
     tb_set_dl(0, 0, 0);
@@ -86,7 +86,8 @@ int main(int argc, char** argv) {
     double ts = hs, tv = hv;
     uint64_t nsys = 0;
     auto step = [&]() {
-        if (ts <= tv) { t->clk = !t->clk; ts += hs; if (t->clk) nsys++; } else { t->clk_vid = !t->clk_vid; tv += hv; }
+        // clk_ym: 48 MHz, rising with every second rising edge of clk (the PLL's third output, in phase)
+        if (ts <= tv) { t->clk = !t->clk; ts += hs; if (t->clk) { nsys++; t->clk_ym = nsys & 1; } } else { t->clk_vid = !t->clk_vid; tv += hv; }
         t->eval();
     };
     auto run_sys_cycles = [&](int n) { uint64_t e = nsys + n; while (nsys < e) step(); };
@@ -208,7 +209,7 @@ int main(int argc, char** argv) {
                 if ((t->dbg_busy >> k) & 1) busy_run[k]++;
                 else if (busy_run[k]) { if (busy_run[k] > busy_max[k]) busy_max[k] = busy_run[k]; busy_hist[k][busy_run[k] >= 6000 ? 7 : busy_run[k] / 1000]++; busy_run[k] = 0; }
             }
-            if (t->dbg_ym_wr && !pym) { ymw++; if (yf) fprintf(yf, "%d %d %02x\n", nframe, (int)t->dbg_ym_a0, (unsigned)t->dbg_ym_d); }
+            if (t->dbg_ym_wr && !pym) { ymw++; if (yf) fprintf(yf, "%d %d %02x\n", nframe, (int)t->dbg_ym_a0 | ((int)t->dbg_ym_a1 << 1), (unsigned)t->dbg_ym_d); }
             pym = t->dbg_ym_wr;
             if (t->snd_valid && !psv) { audio.push_back(t->snd_l); if (t->snd_l) snd_nz++; if (ymparts) { psg_v.push_back(tb_ym_psg(0)); fm_v.push_back(tb_ym_fm(0)); } }
             psv = t->snd_valid;
@@ -256,6 +257,7 @@ int main(int argc, char** argv) {
     if (tf) fclose(tf);
     if (yf) fclose(yf);
     if (sf) fclose(sf);
+    fprintf(stderr, "ADPCM-A read: the longest wait for the cache line %d machine clocks (the chip allows 144)\n", (int)t->dbg_pcm_max);
     { const char* nm[4] = {"bg0", "bg1", "text", "sprites"}; fprintf(stderr, "busiest line, clk_sys cycles of a ~6100 cycle line:"); for (int k = 0; k < 4; k++) fprintf(stderr, " %s %ld", nm[k], busy_max[k]); fprintf(stderr, "\n"); }
     if (ymparts) for (size_t w = 0; w + 23143 <= psg_v.size(); w += 23143) {
         double ps = 0, pm = 0, fs = 0, fmn = 0; int pmx = 0, fmx = 0;

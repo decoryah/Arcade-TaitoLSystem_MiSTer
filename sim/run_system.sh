@@ -17,6 +17,8 @@ if [ -n "$PROF" ]; then B="${B}_prof"; PROFFLAGS="-CFLAGS -pg -LDFLAGS -pg"; fi 
 mkdir -p "$B"
 JT=../modules/jt12
 JTFILES=$(grep -o '[A-Za-z0-9_/]*\.v ' $JT/jt03.qip | sed "s|^|$JT/|" | tr '\n' ' ')
+# the YM2610 of Raimais (jt10): its wrapper and accumulator and the ADPCM-A / B engines (the rest is jt03's list; files.qip has the same)
+JTFILES="$JTFILES $JT/jt10.v $JT/jt10_acc.v $JT/jt12_rst.v $(for f in jt10_adpcm jt10_adpcm_acc jt10_adpcma_lut jt10_adpcmb jt10_adpcmb_cnt jt10_adpcmb_gain jt10_adpcm_cnt jt10_adpcm_dbrom jt10_adpcm_drvA jt10_adpcm_drvB jt10_adpcm_gain jt10_cen_burst jt10_adpcm_div jt10_adpcmb_interpol; do echo -n "$JT/adpcm/$f.v "; done)"
 if [ -z "$NOBUILD" ]; then
 verilator --cc --exe --build -j 8 -O3 --x-assign fast --x-initial fast -CFLAGS "-O3 -march=native" \
     -Wall -Wno-fatal -Wno-DECLFILENAME -Wno-UNUSEDSIGNAL -Wno-UNOPTFLAT -Wno-PINCONNECTEMPTY -Wno-WIDTH -Wno-CASEINCOMPLETE \

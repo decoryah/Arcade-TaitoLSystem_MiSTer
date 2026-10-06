@@ -90,6 +90,7 @@ localparam CONF_STR = {
 
 wire clk_sys;           // 96 MHz: the machine
 wire clk_sdram;         // 96 MHz, shifted: the SDRAM chip's clock pin
+wire clk_ym;            // 48 MHz, in phase with clk_sys: Raimais' YM2610
 wire clk_vid;           // 26.66112 MHz: the raster (pixel clock = this / 4 = 6.66528 MHz)
 wire pll_locked;
 
@@ -100,6 +101,7 @@ pll pll
 	.rst(0),
 	.outclk_0(clk_sys),
 	.outclk_1(clk_sdram),
+	.outclk_2(clk_ym),
 	.locked(pll_locked_sys)
 );
 pll_vid pll_vid
@@ -233,7 +235,7 @@ wire        mem_init = ~pll_locked | RESET;
 wire        mem_ready;
 
 wire        p_req, g0_req, g1_req, gs_req, s_req, a_req, m_req;
-wire [16:4] m_addr;
+wire [18:4] m_addr;
 wire        m_wr, m_done;
 wire  [2:0] m_idx;
 wire [15:0] m_data;
@@ -299,7 +301,7 @@ wire        dbg_ovr, dbg_irq, dbg_m1, dbg_ym_wr;
 
 taitol_core u_core
 (
-	.clk(clk_sys), .clk_vid(clk_vid), .rst(mc_rst), .vid_rst(vid_rst),
+	.clk(clk_sys), .clk_ym(clk_ym), .clk_vid(clk_vid), .rst(mc_rst), .vid_rst(vid_rst),
 	.cache_inval(rom_dl | mem_init),
 	.cfg_board(cfg_board), .cfg_pmask(cfg_pmask), .cfg_n8({1'b0, cfg_n8}), .cfg_rmask(cfg_rmask), .cfg_flags(cfg_flags), .opt_scr_latch(status[19]),
 	.p_req(p_req), .p_addr(p_addr), .p_wr(p_wr), .p_idx(p_idx), .p_data(p_data), .p_done(p_done),

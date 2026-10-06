@@ -43,6 +43,9 @@ def main(argv):
     ap.add_argument('--seconds', type=int, default=10)
     ap.add_argument('--dip', help='DIP switch bytes DSWA,DSWB in hex, applied at boot')
     ap.add_argument('--tag', help='write the dumps as <set>_<tag> (no ROM regions)')
+    ap.add_argument('--ymlog', help="log the sound CPU's writes to its sound chip (frame, address bits, data: the RTL bench's +ymlog format)")
+    ap.add_argument('--ymrange', default='e000-e003', help='the sound chip on the sound CPU bus (default Raimais: e000-e003; Fighting Hawk f000-f001)')
+    ap.add_argument('--wav', help="write MAME's sound output to this WAV (-wavwrite)")
     a = ap.parse_args(argv)
     for name in a.sets:
         start_sig = 5 if name in START_WITH_B1 else 17
@@ -52,11 +55,17 @@ def main(argv):
         outname = name + ('_' + a.tag if a.tag else '')
         env = dict(os.environ, TL_OUT=os.path.join('..', 'dumps', outname), TL_FRAMES=a.frames, TL_REGIONS='0' if a.tag else '1', TL_INPUT=script)
         boot = os.path.join(HERE, 'lua', 'dump.lua')
-        if a.dip:
-            vals = [int(v, 16) for v in a.dip.split(',')]
-            lines = ['local ports = manager.machine.ioport.ports']
-            for port, v in zip(('DSWA', 'DSWB'), vals):
-                lines.append('for _, f in pairs(ports[":%s"].fields) do f.user_value = %d & f.mask end' % (port, v))
+        if a.dip or a.ymlog:
+            lines = []
+            if a.dip:
+                vals = [int(v, 16) for v in a.dip.split(',')]
+                lines.append('local ports = manager.machine.ioport.ports')
+                for port, v in zip(('DSWA', 'DSWB'), vals):
+                    lines.append('for _, f in pairs(ports[":%s"].fields) do f.user_value = %d & f.mask end' % (port, v))
+            if a.ymlog:
+                env['TL_YMLOG'] = os.path.abspath(a.ymlog)
+                env['TL_YMRANGE'] = a.ymrange
+                lines.append('dofile("%s")' % os.path.join(HERE, 'lua', 'ymtrace.lua').replace(os.sep, '/'))
             lines.append('dofile("%s")' % boot.replace(os.sep, '/'))
             boot = os.path.join(ROOT, 'work', 'mame', 'dip_%s.lua' % outname)
             with io.open(boot, 'w', newline='') as f:
@@ -64,10 +73,12 @@ def main(argv):
         if a.bitmap:
             env['TL_BITMAP'] = '1'
         cwd = os.path.join(ROOT, 'work', 'mame')
-        out = subprocess.run([MAME, name, '-rompath', T.DEFAULT_ROMDIR, '-cfg_directory', 'cfg', '-nvram_directory', 'nvram',
-                              '-snapshot_directory', 'snap', '-video', 'none', '-sound', 'none', '-nothrottle', '-skip_gameinfo',
-                              '-autoboot_script', boot, '-seconds_to_run', str(a.seconds)],
-                             capture_output=True, text=True, cwd=cwd, env=env).stdout
+        cmd = [MAME, name, '-rompath', T.DEFAULT_ROMDIR, '-cfg_directory', 'cfg', '-nvram_directory', 'nvram',
+               '-snapshot_directory', 'snap', '-video', 'none', '-sound', 'none', '-nothrottle', '-skip_gameinfo',
+               '-autoboot_script', boot, '-seconds_to_run', str(a.seconds)]
+        if a.wav:
+            cmd += ['-wavwrite', os.path.abspath(a.wav)]
+        out = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd, env=env).stdout
         print('%s: %d frames dumped (inputs %s)' % (outname, out.count('dumped'), script))
     return 0
 

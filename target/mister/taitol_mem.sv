@@ -54,8 +54,8 @@ module taitol_mem (
     input  logic [15:4] a_addr,
     output logic        a_wr, output logic [2:0] a_idx, output logic [15:0] a_data, output logic a_done,
 
-    input  logic        m_req,            // ADPCM ROM cache line fill (Champion Wrestler), image 320000
-    input  logic [16:4] m_addr,
+    input  logic        m_req,            // ADPCM ROM cache line fill (Champion Wrestler's MSM5205, Raimais' YM2610 ADPCM-A), image 320000
+    input  logic [18:4] m_addr,
     output logic        m_wr, output logic [2:0] m_idx, output logic [15:0] m_data, output logic m_done,
 
     input  logic        g0_req,           // BG0 tile row (2 words)
@@ -194,10 +194,12 @@ module taitol_mem (
         if (init) begin bst <= B_IDLE; b_req <= 1'b0; end
         else case (bst)
             B_IDLE: begin
-                if (p_req)       begin bsel <= 3'd0; b_addr <= {5'd0, p_addr, 3'b000}; b_len <= 10'd8; b_req <= 1'b1; bst <= B_RUN; end
+                // the ADPCM client first: Raimais' YM2610 wants its sample byte within 1.5 us of the address (the 128 KB / 512 KB ROM is at
+                // 320000 bytes = word 190000, not aligned to its size, so its line address is added)
+                if (m_req)       begin bsel <= 3'd6; b_addr <= 24'h190000 + {6'd0, m_addr, 3'b000}; b_len <= 10'd8; b_req <= 1'b1; bst <= B_RUN; end
+                else if (p_req)  begin bsel <= 3'd0; b_addr <= {5'd0, p_addr, 3'b000}; b_len <= 10'd8; b_req <= 1'b1; bst <= B_RUN; end
                 else if (s_req)  begin bsel <= 3'd4; b_addr <= 24'h180000 | {8'd0, s_addr, 3'b000}; b_len <= 10'd8; b_req <= 1'b1; bst <= B_RUN; end
                 else if (a_req)  begin bsel <= 3'd5; b_addr <= 24'h140000 | {9'd0, a_addr, 3'b000}; b_len <= 10'd8; b_req <= 1'b1; bst <= B_RUN; end
-                else if (m_req)  begin bsel <= 3'd6; b_addr <= 24'h190000 | {8'd0, m_addr, 3'b000}; b_len <= 10'd8; b_req <= 1'b1; bst <= B_RUN; end
                 else if (g0_req) begin bsel <= 3'd1; b_addr <= g0_addr; b_len <= 10'd2; b_req <= 1'b1; bst <= B_RUN; end
                 else if (g1_req) begin bsel <= 3'd2; b_addr <= g1_addr; b_len <= 10'd2; b_req <= 1'b1; bst <= B_RUN; end
                 else if (gs_req) begin bsel <= 3'd3; b_addr <= gs_addr; b_len <= 10'd2; b_req <= 1'b1; bst <= B_RUN; end
