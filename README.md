@@ -17,7 +17,7 @@ No ROMs or other copyrighted data are in this repository; you supply your own MA
 
 ## Status
 
-**On a real MiSTer** (a CRT on the analog output and a RetroTINK 4K on Direct Video): all 35 sets boot and play. The DIP switches work, Flip Screen and
+**On a real MiSTer** (a CRT on the analog output and a RetroTINK 4K on Direct Video): all 35 sets and the three homebrew games boot and play. The DIP switches work, Flip Screen and
 Service Mode included; the sound is good in Champion Wrestler (ADPCM voices), Kuri Kinton, Evil Stone, Fighting Hawk and Raimais; CRT Adjust works.
 
 **In simulation** (Verilator, the real programs through the SDRAM controller and a behavioural chip), against MAME 0.289's dumps and
@@ -31,12 +31,13 @@ pixel-identical to MAME wherever the machine states agree. `docs/status.md` list
 The zip of a GitHub release unpacks over the root of the SD card. By hand:
 
 1. Put `releases/taitol_YYYYMMDD.rbf` in `/media/fat/_Arcade/cores/` and the contents of `mra/` (the parent `.mra` files and the
-   `_alternatives` folder) in `/media/fat/_Arcade/`. Keep the RBF's `taitol_` name and date: MiSTer finds the core by the MRA's
+   `_alternatives` and `_homebrew` folders) in `/media/fat/_Arcade/`. Keep the RBF's `taitol_` name and date: MiSTer finds the core by the MRA's
    `<rbf>` name plus the date. **Delete older `taitol_*.rbf` files from the cores folder** (the test builds of this core were named
    `taitol_2610xx.rbf`; MiSTer may pick one of those instead of the new file).
 
        /media/fat/_Arcade/<13 MRAs, one a title>.mra
        /media/fat/_Arcade/_alternatives/_<Title>/<other version>.mra
+       /media/fat/_Arcade/_homebrew/<3 homebrew MRAs>.mra          (see "Homebrew games": their ROMs are not included)
        /media/fat/_Arcade/cores/taitol_YYYYMMDD.rbf
 2. Put your MAME 0.289 romsets in `/media/fat/games/mame/` (the merged set, or the split sets next to their parents, see the table).
 3. Start a game from the Arcade menu. The ROM takes a few seconds to load.
@@ -72,6 +73,21 @@ of a title. Tube-It is the title of the Cachat group (MAME's parent, Cachat (Jap
 | &nbsp;&nbsp;Champion Wrestler (Japan), (US) | champwrj, champwru | each + champwr | |
 | Raimais (World, rev 1) | raimais | raimais | 3 Z80s, YM2610, TC0140SYT |
 | &nbsp;&nbsp;Raimais (Japan, rev 1), (Japan) | raimaisj, raimaisjo | each + raimais | |
+
+### Homebrew games
+
+Three homebrew games for the Plotting board run too. They have MRAs in `mra/_homebrew/` (`_Arcade/_homebrew/` on the card) and are not MAME sets:
+
+| MRA | Author | Rename the author's `plotting.zip` to | Download |
+|---|---|---|---|
+| Sokoban LE | Adrian Smethurst (2015) | `sokobanle.zip` | `sokoban_le_plotting.zip` in the [UKVAC thread](https://www.ukvac.com/forum/threads/new-game-release-sokoban-le-for-taito-l-system.36006/) |
+| SQIJ 2018 | Sokurah, Tardis Remakes (v1.5) | `sqij.zip` | [tardis.dk](https://tardis.dk/wordpress/?page_id=1695) |
+| The Speccies 2 | Sokurah, Tardis Remakes (v1.0) | `speccies2.zip` | [tardis.dk](https://tardis.dk/wordpress/?page_id=1359) |
+
+The authors ask that their games are distributed only from their own pages, so the ROMs are not in this repository or in its releases. Download the game's zip (it is
+called `plotting.zip` because it replaces Plotting in MAME), rename it as in the table and put it in `/media/fat/games/mame/`. The MRAs find the ROMs by name and were
+made for these versions of the files. The DIP switches in the menu are the Plotting board's; a game may use only some of them. `tools/make_mra.py` writes these MRAs
+(`HOMEBREW` table) and `tools/mra_verify.py` checks that each builds the program and graphics regions MAME loads from the same files.
 
 ## OSD options
 

@@ -63,7 +63,9 @@ def region_parts(reg, slot_size):
     items.sort(key=lambda t: t[0])
 
     def ref(ld):
-        a = 'name=%s crc="%08x"' % (quoteattr(ld['file']), ld['crc'])
+        a = 'name=%s' % quoteattr(ld['file'])
+        if ld['crc'] is not None:                                   # homebrew parts are found by name only
+            a += ' crc="%08x"' % ld['crc']
         if ld['skip'] or any(o['file'] == ld['file'] and o.get('cont') for o in reg['loads']):      # a file split by ROM_CONTINUE: only this part of it
             a += ' offset="0x%X" length="0x%X"' % (ld['skip'], ld['size'])
         return a
@@ -114,19 +116,32 @@ def dips(name):
     return default, lines
 
 
-def mra(name, roms, games):
-    g = games[name]
-    zips = [name + '.zip'] + ([g['parent'] + '.zip'] if g['parent'] else [])
-    cfg = T.config_for(name, roms, games)
-    by_tag = {r['tag']: r for r in roms[name]}
-    by_tag['adpcm'] = by_tag.get('adpcm') or by_tag.get('ymsnd:adpcma')
-    default, diplines = dips(name)
+def mra(name, roms, games, hb=None):
+    """The MRA of MAME set `name`, or of homebrew `hb` (HOMEBREW below: a game for the Plotting board, ROMs not in MAME)."""
+    if hb:
+        base = 'plotting'
+        g = dict(games[base], title=hb['title'], year=hb['year'], company=hb['company'], parent=None)
+        zips = [hb['zip']]
+        by_tag = {'maincpu': {'tag': 'maincpu', 'size': 0x10000, 'fill': 0, 'loads': [
+                      {'file': 'ic10', 'offset': 0, 'size': hb['ic10'][0], 'crc': None, 'stride': 1, 'skip': 0}]},
+                  'maincpu:gfx': {'tag': 'maincpu:gfx', 'size': 0x20000, 'fill': 0, 'loads': [
+                      {'file': 'b96-07.ic9', 'offset': 0, 'size': hb['ic9'][0], 'crc': None, 'stride': 2, 'skip': 0},
+                      {'file': 'b96-08.ic8', 'offset': 1, 'size': hb['ic8'][0], 'crc': None, 'stride': 2, 'skip': 0}]}}
+    else:
+        base = name
+        g = games[name]
+        zips = [name + '.zip'] + ([g['parent'] + '.zip'] if g['parent'] else [])
+        by_tag = {r['tag']: r for r in roms[name]}
+        by_tag['adpcm'] = by_tag.get('adpcm') or by_tag.get('ymsnd:adpcma')
+    cfg = T.config_for(base, roms, games)
+    default, diplines = dips(base)
     L = []
     L.append('<misterromdescription>')
     L.append('    <rotation>%s</rotation>' % ('vertical' if g['rot'] in ('ROT90', 'ROT270') else 'horizontal'))
     L.append('    <name>%s</name>' % g['title'].replace('&', '&amp;'))
     L.append('    <setname>%s</setname>' % name)
-    L.append('    <mameversion>0289</mameversion>')
+    if not hb:
+        L.append('    <mameversion>0289</mameversion>')
     L.append('    <year>%s</year>' % g['year'])
     L.append('    <manufacturer>%s</manufacturer>' % g['company'].replace('&', '&amp;'))
     L.append('    <players>2</players>')
@@ -141,7 +156,14 @@ def mra(name, roms, games):
         L.append('        0x%06X  0x%06X  %s' % (off, size, tag))
     L.append('        0x%06X  0x%06X  configuration: [0] board [1:2] 8x8 tiles [3:5] tile mask [6:8] program ROM mask [9] rotation [10] flags [16:42] controls' % (T.CFG_OFF, T.CFG_SIZE))
     L.append('')
-    L.append('      Expects the MAME 0.289 merged romset or the split sets: parts are found by name and CRC.')
+    if hb:
+        L.append('      %s' % hb['about'])
+        L.append("      Needs %s in games/mame: the author's plotting.zip (%s), renamed. Parts are found by name; the released files are" % (hb['zip'], hb['url']))
+        L.append('      ic10 %d bytes CRC %08x, b96-07.ic9 %d bytes CRC %08x, b96-08.ic8 %d bytes CRC %08x.' % (
+            hb['ic10'][0], hb['ic10'][1], hb['ic9'][0], hb['ic9'][1], hb['ic8'][0], hb['ic8'][1]))
+        L.append('      The program (ic10) is padded with 00 to the 64 KB the board has, as MAME does; the graphics ROMs are 64 KB each.')
+    else:
+        L.append('      Expects the MAME 0.289 merged romset or the split sets: parts are found by name and CRC.')
     L.append('      DIP switches (ioctl index 254): byte 0 is MAME\'s DSWA, byte 1 DSWB (a 1 is MAME\'s default setting).')
     L.append('    -->')
     L.append('    <switches default="%02X,%02X" base="16">' % (default['DSWA'], default['DSWB']))
@@ -186,9 +208,33 @@ def mra_path(n, games):
     return os.path.join(OUTDIR, fname)
 
 
+# Homebrew games for the Plotting board (board 0). Each is the author's replacement `plotting.zip` (b96-07.ic9, b96-08.ic8, ic10: MAME runs it with
+# `mame plotting` and a checksum warning). The authors ask that their ROMs are only distributed from their own sites, so there are MRAs and no ROMs; the
+# user renames the download to `zip`. ic10 / ic9 / ic8 = (size, CRC) of the released file; the program is padded to the board's 64 KB as MAME does.
+HOMEBREW = [
+    dict(setname='sokobanle', zip='sokobanle.zip', title='Sokoban LE', year='2015', company='Adrian Smethurst',
+         ic10=(65536, 0x5959ddb4), ic9=(65536, 0x859e1ff4), ic8=(65536, 0x439a6670),
+         url='https://www.ukvac.com/forum/threads/new-game-release-sokoban-le-for-taito-l-system.36006/ - sokoban_le_plotting.zip',
+         about="Sokoban LE (August 2015) by Adrian Smethurst: a port of Compiler Software's Spectrum Sokoban."),
+    dict(setname='sqij', zip='sqij.zip', title='SQIJ 2018', year='2018', company='Tardis Remakes',
+         ic10=(61440, 0x793c8b97), ic9=(65536, 0xc4de729b), ic8=(65536, 0x978df42d),
+         url='https://tardis.dk/wordpress/?page_id=1695',
+         about='SQIJ 2018 (v1.5, November 2018) by Soeren Borgquist (Sokurah), Tardis Remakes: a remake of the C64 maze game.'),
+    dict(setname='speccies2', zip='speccies2.zip', title='The Speccies 2', year='2015', company='Tardis Remakes',
+         ic10=(21993, 0x29e126ac), ic9=(65536, 0x11ed1528), ic8=(65536, 0xfcfeb89f),
+         url='https://tardis.dk/wordpress/?page_id=1359',
+         about='The Speccies 2 (v1.0, October 2015) by Soeren Borgquist (Sokurah), Tardis Remakes: a puzzle game, 50 levels.'),
+]
+
+
+def homebrew_path(hb):
+    return os.path.join(OUTDIR, '_homebrew', hb['title'] + '.mra')
+
+
 def main(argv):
     roms, games = T.parse_driver()
-    names = argv or SUPPORTED
+    names = [n for n in (argv or SUPPORTED) if n in games]
+    hbs = [h for h in HOMEBREW if not argv or h['setname'] in argv]
     if not argv:                                                   # a full run: no stale files from an older layout
         for d, _, fs in os.walk(OUTDIR):
             for f in fs:
@@ -198,6 +244,11 @@ def main(argv):
         path = mra_path(n, games)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         open(path, 'w', newline='\n').write(mra(n, roms, games))
+        print('wrote', os.path.normpath(path))
+    for hb in hbs:
+        path = homebrew_path(hb)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        open(path, 'w', newline='\n').write(mra(hb['setname'], roms, games, hb))
         print('wrote', os.path.normpath(path))
     return 0
 

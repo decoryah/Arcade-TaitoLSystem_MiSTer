@@ -1,0 +1,74 @@
+<misterromdescription>
+    <rotation>horizontal</rotation>
+    <name>The Speccies 2</name>
+    <setname>speccies2</setname>
+    <year>2015</year>
+    <manufacturer>Tardis Remakes</manufacturer>
+    <players>2</players>
+    <joystick>8</joystick>
+    <rbf>taitol</rbf>
+    <platform>Taito L</platform>
+
+    <!--
+      Flat image for the Taito L core (target/mister/taitol_mem.sv), the same for every set (tools/taitol_rom.py):
+        0x000000  0x100000  maincpu
+        0x100000  0x180000  maincpu:gfx
+        0x280000  0x080000  audiocpu
+        0x300000  0x020000  slave
+        0x320000  0x080000  adpcm
+        0x3A0000  0x000800  mcu:mcu
+        0x3A0800  0x000030  configuration: [0] board [1:2] 8x8 tiles [3:5] tile mask [6:8] program ROM mask [9] rotation [10] flags [16:42] controls
+
+      The Speccies 2 (v1.0, October 2015) by Soeren Borgquist (Sokurah), Tardis Remakes: a puzzle game, 50 levels.
+      Needs speccies2.zip in games/mame: the author's plotting.zip (https://tardis.dk/wordpress/?page_id=1359), renamed. Parts are found by name; the released files are
+      ic10 21993 bytes CRC 29e126ac, b96-07.ic9 65536 bytes CRC 11ed1528, b96-08.ic8 65536 bytes CRC fcfeb89f.
+      The program (ic10) is padded with 00 to the 64 KB the board has, as MAME does; the graphics ROMs are 64 KB each.
+      DIP switches (ioctl index 254): byte 0 is MAME's DSWA, byte 1 DSWB (a 1 is MAME's default setting).
+    -->
+    <switches default="FF,FF" base="16">
+        <dip bits="0" name="Play Mode" ids="1 Player,2 Player"/>
+        <dip bits="1" name="Flip Screen" ids="On,Off"/>
+        <dip bits="2" name="Service Mode" ids="On,Off"/>
+        <dip bits="3" name="Demo Sounds" ids="Off,On"/>
+        <dip bits="4,5" name="Coin A" ids="4 Coins/1 Credit,3 Coins/1 Credit,2 Coins/1 Credit,1 Coin/1 Credit"/>
+        <dip bits="6,7" name="Coin B" ids="1 Coin/6 Credits,1 Coin/4 Credits,1 Coin/3 Credits,1 Coin/2 Credits"/>
+        <dip bits="8,9" name="Difficulty" ids="Hardest,Hard,Easy,Medium"/>
+        <dip bits="10" name="Unused" ids="On,Off"/>
+        <dip bits="11" name="Unused" ids="On,Off"/>
+        <dip bits="12,13" name="Wild Blocks" ids="4,3,1,2"/>
+        <dip bits="14" name="Allow Continue" ids="Off,On"/>
+        <dip bits="15" name="Unused" ids="On,Off"/>
+    </switches>
+
+    <buttons names="Button 1,Button 2,Start,Coin" default="A,B,Start,Select"/>
+
+    <rom index="0" zip="speccies2.zip" md5="None">
+
+        <!-- maincpu -->
+        <part name="ic10"/>
+        <part repeat="0xAA17">00</part>
+        <part repeat="0xF0000">00</part>
+
+        <!-- maincpu:gfx -->
+        <interleave output="16">
+            <part name="b96-07.ic9" map="01"/>
+            <part name="b96-08.ic8" map="10"/>
+        </interleave>
+        <part repeat="0x160000">00</part>
+
+        <!-- audiocpu -->
+        <part repeat="0x80000">00</part>
+
+        <!-- slave -->
+        <part repeat="0x20000">00</part>
+
+        <!-- adpcm -->
+        <part repeat="0x80000">00</part>
+
+        <!-- mcu:mcu -->
+        <part repeat="0x800">00</part>
+
+        <!-- configuration -->
+        <part>00 00 10 FF 0F 00 FF FF 00 00 00 00 00 00 00 00 13 0F 11 01 02 03 04 05 14 10 12 08 09 0A 0B 0C 00 00 00 00 00 00 00 00 FF FF FF 00 00 00 00 00</part>
+    </rom>
+</misterromdescription>

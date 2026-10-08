@@ -45,15 +45,19 @@ def main(argv):
     ap.add_argument('--tag', help='write the dumps as <set>_<tag> (no ROM regions)')
     ap.add_argument('--ymlog', help="log the sound CPU's writes to its sound chip (frame, address bits, data: the RTL bench's +ymlog format)")
     ap.add_argument('--ymrange', default='e000-e003', help='the sound chip on the sound CPU bus (default Raimais: e000-e003; Fighting Hawk f000-f001)')
+    ap.add_argument('--ymcpu', default=':audiocpu', help='CPU the sound chip is on (Plotting and the other one-CPU boards: :maincpu)')
+    ap.add_argument('--ymmask', default='3', help='address bits kept in the log (YM2203: 1)')
     ap.add_argument('--wav', help="write MAME's sound output to this WAV (-wavwrite)")
+    ap.add_argument('--rompath', help="MAME ROM folder instead of the default (a homebrew's replacement plotting.zip)")
+    ap.add_argument('--outname', help='write the dumps as <outname> (with the ROM regions) instead of <set>')
     a = ap.parse_args(argv)
     for name in a.sets:
         start_sig = 5 if name in START_WITH_B1 else 17
         script = ';'.join([
             '320:%s:%s:1' % (port_of(name, 15), NAMES[15]), '324:%s:%s:0' % (port_of(name, 15), NAMES[15]),
             '345:%s:%s:1' % (port_of(name, start_sig), NAMES[start_sig]), '349:%s:%s:0' % (port_of(name, start_sig), NAMES[start_sig])])
-        outname = name + ('_' + a.tag if a.tag else '')
-        env = dict(os.environ, TL_OUT=os.path.join('..', 'dumps', outname), TL_FRAMES=a.frames, TL_REGIONS='0' if a.tag else '1', TL_INPUT=script)
+        outname = a.outname or name + ('_' + a.tag if a.tag else '')
+        env = dict(os.environ, TL_OUT=os.path.join('..', 'dumps', outname), TL_FRAMES=a.frames, TL_REGIONS='0' if a.tag and not a.outname else '1', TL_INPUT=script)
         boot = os.path.join(HERE, 'lua', 'dump.lua')
         if a.dip or a.ymlog:
             lines = []
@@ -65,6 +69,8 @@ def main(argv):
             if a.ymlog:
                 env['TL_YMLOG'] = os.path.abspath(a.ymlog)
                 env['TL_YMRANGE'] = a.ymrange
+                env['TL_YMCPU'] = a.ymcpu
+                env['TL_YMMASK'] = a.ymmask
                 lines.append('dofile("%s")' % os.path.join(HERE, 'lua', 'ymtrace.lua').replace(os.sep, '/'))
             lines.append('dofile("%s")' % boot.replace(os.sep, '/'))
             boot = os.path.join(ROOT, 'work', 'mame', 'dip_%s.lua' % outname)
@@ -73,7 +79,7 @@ def main(argv):
         if a.bitmap:
             env['TL_BITMAP'] = '1'
         cwd = os.path.join(ROOT, 'work', 'mame')
-        cmd = [MAME, name, '-rompath', T.DEFAULT_ROMDIR, '-cfg_directory', 'cfg', '-nvram_directory', 'nvram',
+        cmd = [MAME, name, '-rompath', a.rompath or T.DEFAULT_ROMDIR, '-cfg_directory', 'cfg', '-nvram_directory', 'nvram',
                '-snapshot_directory', 'snap', '-video', 'none', '-sound', 'none', '-nothrottle', '-skip_gameinfo',
                '-autoboot_script', boot, '-seconds_to_run', str(a.seconds)]
         if a.wav:

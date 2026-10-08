@@ -265,6 +265,7 @@ module taitol_board (
     );
     taitol_sub u_sub (
         .clk(clk), .rst(rst | ~two), .cen(cen_sub), .big_rom(board == 4'd6), .vbl_pulse(vbl_pulse),
+        .intl_en(board == 4'd6), .intl_set(ext_wr & sel_dpm & (ext_a[10:0] == 11'h7FE)),
         .rom_we(sub_we), .rom_waddr(sub_waddr), .rom_wdata(sub_wdata),
         .dp_addr(sdp_addr), .dp_we(sdp_we), .dp_wdata(sdp_wdata), .dp_q(sdp_q),
         .ym_sel(s_ym_sel), .ym_rd(s_ym_rd), .ym_wr(s_ym_wr), .ym_a0(s_ym_a0), .ym_wdata(s_ym_wdata), .ym_q(ym_q)

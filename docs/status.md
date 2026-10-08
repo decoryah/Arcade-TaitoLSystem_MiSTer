@@ -90,10 +90,11 @@ Direct Video the two are fed the very same stream.
 | Build | Result on the MiSTer |
 |---|---|
 | 261004 (Plotting only) | all Plotting MRAs: picture and sound good |
-| 261005, 261006 (all sets) | every MRA boots and plays; the DIP switches work, Flip Screen and Service Mode included; sound good in Champion Wrestler (ADPCM voices), Kuri Kinton, Evil Stone and Fighting Hawk. Faults: at random, for a few seconds, striping / streaks / a vertical roll (every board, CRT and 4K alike; a restart of the game usually cured it); vertical games upside down on the RetroTINK 4K; the CRT picture a little low |
+| 261005, 261006 (all sets) | every MRA boots and plays; the DIP switches work, Flip Screen and Service Mode included; sound good in Champion Wrestler (ADPCM voices), Kuri Kinton and Fighting Hawk (Evil Stone had no sound at all: found afterwards, fixed in 20261007). Faults: at random, for a few seconds, striping / streaks / a vertical roll (every board, CRT and 4K alike; a restart of the game usually cured it); vertical games upside down on the RetroTINK 4K; the CRT picture a little low |
 | 261007 | **the shaking is gone** (the fix below). CRT Adjust works |
 | 20261005 | 261007 plus a longer V-Shift (-32..+31 lines) and the rotation direction of the HDMI scaler path put back to what MAME's orientation says. Tested by the owner on the CRT and the RetroTINK 4K (Direct Video); the scaler rotation path (Direct Video off) was not part of that test |
-| 20261006 (this release) | 20261005 plus Raimais with its YM2610, the other versions of Kuri Kinton, Fighting Hawk and Champion Wrestler (10 sets), and a third PLL output for the YM2610. Tested by the owner on the CRT and the RetroTINK 4K: Raimais and the other new sets work |
+| 20261006 | 20261005 plus Raimais with its YM2610, the other versions of Kuri Kinton, Fighting Hawk and Champion Wrestler (10 sets), and a third PLL output for the YM2610. Tested by the owner on the CRT and the RetroTINK 4K: Raimais and the other new sets work. Evil Stone has no sound (reported by the owner afterwards) |
+| 20261007 (this release) | 20261006 plus **Evil Stone's sound** (the fix below) and MRAs for three homebrew games (Sokoban LE, SQIJ 2018, The Speccies 2). Tested by the owner on the MiSTer: Evil Stone's sound and the three homebrew games work |
 
 **The random shaking was a real bug in the raster-to-machine event crossing** (found from two phone videos of Puzznic and Cachat). For a few seconds at
 a time the picture striped (alternate lines from the wrong place), streaked (grass colours in the sky) or *rolled vertically* (the HUD at the bottom of
@@ -127,9 +128,9 @@ the HSync 6 pixels; V-Shift +3 moves the VSync 3 lines, +31 by 31, -16 by -16, -
 beyond the H-Position limit of the raster are clamped. V-Shift delays the VSync by N lines (+) or advances it (-); by the CRT's timing a *later* VSync leaves less
 blank between the retrace and the picture, so + should lift the picture and - lower it (not yet confirmed on the CRT).
 
-**Quartus, release 20261006** (`releases/taitol_20261006.rbf`, `quartus_sh --flow compile TaitoL`; the fitter's and the timing analyser's reports are
-`releases/taitol_20261006.fit.summary` and `.sta.summary`): 43 % of the ALMs (18,069 of 41,910), 477 of 553 RAM blocks (86 %), 43 of 112 DSPs, 45 timing entries, none negative: every setup slack
-is positive (the 96 MHz machine +0.90 ns, the YM2610's 48 MHz +1.74 ns, the HDMI scaler +0.55 ns, the raster clock +22.6 ns), tightest hold 0.242 ns.
+**Quartus, release 20261007** (`releases/taitol_20261007.rbf`, `quartus_sh --flow compile TaitoL`; the fitter's and the timing analyser's reports are
+`releases/taitol_20261007.fit.summary` and `.sta.summary`): 43 % of the ALMs (17,991 of 41,910), 477 of 553 RAM blocks (86 %), 43 of 112 DSPs, 45 timing entries, none negative: every setup slack
+is positive (the 96 MHz machine +0.83 ns, the YM2610's 48 MHz +1.71 ns, the HDMI scaler +0.48 ns, the raster clock +22.5 ns), tightest hold 0.243 ns.
 
 ## Raimais, its YM2610, and the other versions of Kuri Kinton, Fighting Hawk and Champion Wrestler (release 20261006)
 
@@ -176,6 +177,55 @@ while the enables, the reset and `cen_reg` stay single-cycle. The Z80's side of 
   in `modules/jt12/jt12_top.v` (`modules/jt12/LOCAL_CHANGES.txt`) and reads the same ROM through its own cache.
 * The SSG is not exercised in the first 12 s of the attract mode (no register 0-15 write), so its level is by calculation (the owner's MCatAdv core, checked on hardware, uses the same
   figures), not measured here.
+
+## Evil Stone's sound (release 20261007)
+
+After 20261006 the owner reported that Evil Stone has no sound at all. **Cause:** Evil Stone's second Z80 (the sound CPU: YM2203 at E800-E801) is told
+about a sound command by the MB8421 dual-port RAM that it shares with the main CPU, and the core had that CPU's NMI input tied off. In MAME (`mb8421`, `taito_l.cpp`) the
+main CPU's write of its address 7FE (A7FE) sets the chip's interrupt flag, which is the sound CPU's NMI, and the sound CPU's read of E7FE clears it; the Z80's NMI is
+edge-triggered. MAME's probe of the attract mode shows the main CPU writing A7FE commands (frames 15, 322, 339, 346, 366, 370, 642, ...) and the sound CPU reading E7FE after
+each one. **Fix** (`rtl/taitol_sub.sv`, `rtl/taitol_board.sv`): a flag set by the main CPU's write of A7FE (board 6 only), cleared by the sound CPU's read of E7FE, drives the NMI.
+
+**Against MAME** (Evil Stone, MAME's default switches, coin at 320, 1P start at 345, 620 frames, the YM2203 included; `tools/mamedump.py --ymlog --wav`, the bench's `+ymlog`,
+`tools/ymcmp.py`, `tools/audiocmp.py`, `tools/cmprtl.py`):
+* Picture and machine state (VRAM, palette, video registers, sprite RAM) **identical** at frames 300, 420 and 560.
+* The sound CPU wrote 3,041 times to the chip up to frame 600 in the RTL and in MAME. The first 1,380 writes are identical in order; then one early command burst (148 writes: the
+  FM set-up) comes at frame 345 in the RTL and 341 in MAME; the 6-write burst is at frame 343 in MAME and 347 in the RTL, the 18-write burst at 347 in MAME and 346 in the RTL; after
+  those few frames the two logs line up again (a sequence alignment matches 3,117 of the first 3,143 MAME writes). So the sound CPU does the same things as in MAME but answers
+  a few commands a few frames apart; the cause of that offset is not known (as with Raimais' sound, where the main CPU's command came two frames apart).
+* **Level** (the AC part of the output, 0.5 s windows, RTL / MAME): 1.03, 1.12, 0.94, 1.04 from 7 to 9 s, the steady part of the attract mode's music; the windows around the command bursts (5.5 to 6.5 s)
+  differ because of the burst offset. The two recordings have different constant offsets (mean 10,849 in MAME's file, 7,955 in the RTL's), which is not sound.
+* Not done: a measured comparison with the real board or with the video the owner pointed to. **Heard on a MiSTer by the owner: Evil Stone's sound works.**
+
+## Homebrew games on the Plotting board (release 20261007)
+
+Sokoban LE (Adrian Smethurst, 2015), SQIJ 2018 (Sokurah, Tardis Remakes, v1.5) and The Speccies 2 (Sokurah, v1.0) are written for the Taito L System and ship as a replacement
+`plotting.zip` (MAME runs them with `mame plotting`, with a checksum warning). They use Plotting's board and file names, so the core needed **no change**: the board-0 configuration
+bytes are Plotting's. The program ROM `ic10` is 64 KB, 61,440 bytes (SQIJ) or 21,993 bytes (The Speccies 2) and is padded with 00 to the board's 64 KB, as MAME does; `b96-07.ic9` and
+`b96-08.ic8` are 64 KB each and interleaved as in Plotting.
+
+The authors ask that their ROMs are distributed only from their own pages, so the repository and the releases hold **MRAs only** (`mra/_homebrew/`, `tools/make_mra.py`'s `HOMEBREW` table):
+the parts are found by name (the homebrew files have other CRCs than Plotting's) in `sokobanle.zip`, `sqij.zip` or `speccies2.zip`, the author's download renamed. The README says where
+each comes from. `tools/mra_verify.py` builds each MRA's image from the downloads and compares the program and graphics regions with those MAME loaded from the same files
+(`tools/mamedump.py --rompath ... --outname hb_<name> plotting`): identical for all three.
+
+**Against MAME** (the whole-machine simulation of the RTL, MAME's default switches for Plotting, coin at frame 320, 1P start at 345; `tools/cmprtl.py`):
+
+| Game | Result |
+|---|---|
+| Sokoban LE | picture and machine state identical at 300, 331, 360, 420, 500, 560 |
+| SQIJ 2018 | picture and machine state identical at 300, 331, 360, 420, 500, 560 |
+| The Speccies 2 | picture identical at all six frames; the state is identical at 360, 420, 560, and at 300, 331 and 500 two to four sprite-position bytes (sprite RAM B008-B016, one to three units off) differ: the sprites' update within the frame is sampled at a slightly different moment, the explained sub-frame difference of the other sets |
+
+**The YM2203 writes** of the first 300 frames (`tools/mamedump.py --ymlog --ymcpu :maincpu --ymmask 1`, the bench's `+ymlog`, `tools/ymcmp.py`; the Plotting board's chip is on the main CPU's bus at A000-A003, the
+games play their music through its SSG): Sokoban LE **7,956 writes in both, all identical in address, data and order**; The Speccies 2 **9,353 in both, all identical**; SQIJ 2018 5,927 in both with 5,889 matching in order:
+MAME makes one more register-select write (register 0F) at frame 15, after which the RTL's writes come one frame later than MAME's, and in frame 149, the first frame of the music player, five data bytes differ
+(MAME writes 01 / 08 to the tone-A and mixer registers where the RTL writes 00). The cause is not investigated; the picture and the machine state of the same run are identical to MAME's at all six frames.
+Levels were not compared: the SSG's mix is the one used by every other board.
+
+Notes: the Sokoban LE zip has no PLD file (`gal16v8-b86-04.bin`), which MAME insists on, so the MAME run used a copy with SQIJ's PLD added (the core loads no PLD); The Speccies 2's zip also holds an MC68705
+ROM (`mc68705p3.ic4`, for Puzznic boards) that the Plotting board does not use and the MRA does not load. Sokoban LE also exists for Puzznic and Play Girls boards, and there is a four-in-one multi-cart: not covered.
+**Tried on a MiSTer by the owner: all three work.**
 
 ## Quartus 17.0.2 (MiSTer's toolchain)
 

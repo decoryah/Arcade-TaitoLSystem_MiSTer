@@ -8,12 +8,17 @@
 //
 // Clock 12 MHz / 3 = 4 MHz (cen). The interrupt is MAME's irq0_line_hold at the start of vblank: held until acknowledged;
 // the acknowledge cycle supplies FF (RST 38 / IM 1).
+// Evil Stone only (MAME: dpram.intl_callback -> the sound CPU's NMI): the MB8421's left interrupt. It is asserted when the main CPU writes the
+// RAM's address 7FE (A7FE) and cleared when this CPU reads 7FE (E7FE): that is how the main CPU's sound commands reach the sound program.
+// (Kuri Kinton does not connect the chip's interrupt pins.)
 `default_nettype none
 module taitol_sub (
     input  logic        clk,
     input  logic        rst,
     input  logic        cen,                  // 4 MHz
     input  logic        big_rom,              // Evil Stone: ROM up to BFFF
+    input  logic        intl_en,              // Evil Stone: the dual-port RAM's left interrupt is the NMI
+    input  logic        intl_set,             // the main CPU writes address 7FE of the dual-port RAM
     input  logic        vbl_pulse,            // start of vblank
 
     // the ROM as the loader streams it
@@ -41,7 +46,7 @@ module taitol_sub (
     logic        irq_pend = 1'b0;
 
     tv80s_cen u_z80 (
-        .reset_n(~rst), .clk(clk), .cen(cen), .wait_n(1'b1), .int_n(~irq_pend), .nmi_n(1'b1), .busrq_n(1'b1),
+        .reset_n(~rst), .clk(clk), .cen(cen), .wait_n(1'b1), .int_n(~irq_pend), .nmi_n(~(intl & intl_en)), .busrq_n(1'b1),
         .m1_n(m1_n), .mreq_n(mreq_n), .iorq_n(iorq_n), .rd_n(rd_n), .wr_n(wr_n), .rfsh_n(), .halt_n(), .busak_n(),
         .A(A), .di(di), .dout(dout), .im()
     );
@@ -58,6 +63,15 @@ module taitol_sub (
             if (vbl_pulse) irq_pend <= 1'b1;
             if (inta && !inta_d) irq_pend <= 1'b0;
         end
+    end
+
+    // ---------------------------------------------------------------- the dual-port RAM's left interrupt
+    logic intl = 1'b0;
+    wire  dp_int_rd = mem_rd & (A[15:11] == 5'b11100) & (A[10:0] == 11'h7FE);
+    always_ff @(posedge clk) begin
+        if (rst) intl <= 1'b0;
+        else if (intl_set) intl <= 1'b1;
+        else if (dp_int_rd) intl <= 1'b0;
     end
 
     // ---------------------------------------------------------------- memories
