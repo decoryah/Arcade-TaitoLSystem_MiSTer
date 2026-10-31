@@ -38,9 +38,9 @@
         <dip bits="14,15" name="Terms of Replay" ids="No Use,Stage one step back/Timer continuous,Stage reset to start/Timer reset to start,Stage reset to start/Timer continuous"/>
     </switches>
 
-    <buttons names="Button 1,Button 2,Start,Coin" default="A,B,Start,Select"/>
+    <buttons names="Grab,Retry,Start,Coin" default="A,B,Start,Select"/>
 
-    <rom index="0" zip="puzznicu.zip|puzznic.zip" md5="None">
+    <rom index="0" zip="puzznicu.zip|puzznic.zip" md5="None" address="0x32000000">
 
         <!-- maincpu -->
         <part name="c20-10.ic11" crc="3522d2e5"/>

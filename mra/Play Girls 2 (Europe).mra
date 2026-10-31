@@ -40,7 +40,7 @@
 
     <buttons names="Button 1,Button 2,Start,Coin" default="A,B,Start,Select"/>
 
-    <rom index="0" zip="plgirls2.zip" md5="None">
+    <rom index="0" zip="plgirls2.zip" md5="None" address="0x32000000">
 
         <!-- maincpu -->
         <part name="pg2_1e.ic6" crc="b279990b"/>

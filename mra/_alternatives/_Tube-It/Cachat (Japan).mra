@@ -39,9 +39,9 @@
         <dip bits="15" name="Unused" ids="On,Off"/>
     </switches>
 
-    <buttons names="Button 1,Button 2,Start,Coin" default="A,B,Start,Select"/>
+    <buttons names="Rotate/Drag,-,Start,Coin" default="A,B,Start,Select"/>
 
-    <rom index="0" zip="cachat.zip" md5="None">
+    <rom index="0" zip="cachat.zip" md5="None" address="0x32000000">
 
         <!-- maincpu -->
         <part name="cac6" crc="8105cf5f"/>

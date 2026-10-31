@@ -27,7 +27,7 @@
         <dip bits="0" name="Demo Sounds" ids="Off,On"/>
         <dip bits="1" name="Flip Screen" ids="On,Off"/>
         <dip bits="2" name="Service Mode" ids="On,Off"/>
-        <dip bits="3,4,5" name="Coinage" ids="4 Coins/1 Credit,2 Coins/3 Credits,3 Coins/1 Credit,2 Coins/1 Credit,1 Coin/4 Credits,1 Coin/2 Credits,Unused,1 Coin/1 Credit"/>
+        <dip bits="3,5" name="Coinage" ids="4 Coins/1 Credit,2 Coins/3 Credits,3 Coins/1 Credit,2 Coins/1 Credit,1 Coin/4 Credits,1 Coin/2 Credits,Unused,1 Coin/1 Credit"/>
         <dip bits="6" name="Unused" ids="On,Off"/>
         <dip bits="7" name="Unused" ids="On,Off"/>
         <dip bits="8,9" name="Difficulty" ids="Hardest,Hard,Easy,Medium"/>
@@ -39,9 +39,9 @@
         <dip bits="15" name="P1+P2 Start to Clear Round (Cheat)" ids="On,Off"/>
     </switches>
 
-    <buttons names="Button 1,Button 2,Start,Coin" default="A,B,Start,Select"/>
+    <buttons names="Shoot,-,Start,Coin" default="A,B,Start,Select"/>
 
-    <rom index="0" zip="plgirls.zip" md5="None">
+    <rom index="0" zip="plgirls.zip" md5="None" address="0x32000000">
 
         <!-- maincpu -->
         <part name="pg03.ic6" crc="6ca73092"/>

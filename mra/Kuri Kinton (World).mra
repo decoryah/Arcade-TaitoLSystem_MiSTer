@@ -39,9 +39,9 @@
         <dip bits="15" name="Allow Continue" ids="On,5 Times"/>
     </switches>
 
-    <buttons names="Button 1,Button 2,Start,Coin" default="A,B,Start,Select"/>
+    <buttons names="Punch/Kick,Jump,Start,Coin" default="A,B,Start,Select"/>
 
-    <rom index="0" zip="kurikint.zip" md5="None">
+    <rom index="0" zip="kurikint.zip" md5="None" address="0x32000000">
 
         <!-- maincpu -->
         <part name="b42-09.ic2" crc="e97c4394"/>

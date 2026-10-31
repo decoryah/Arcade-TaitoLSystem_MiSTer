@@ -44,7 +44,7 @@ assign LED_DISK  = 0;
 assign LED_POWER = 0;
 assign BUTTONS   = 0;
 
-// the DDR3 is only the rotated games' frame buffer (screen_rotate, below)
+// the DDR3 holds the rotated games' frame buffer (screen_rotate) and, for a moment while a ROM loads, the fast load's image
 assign FB_FORCE_BLANK = 1'b0;
 
 //////////////////////////////////////////////////////////////////
@@ -57,28 +57,47 @@ wire  [21:0] gamma_bus;
 
 wire  [1:0] ar = status[122:121];
 wire        video_rotated;
-assign VIDEO_ARX = (!ar) ? (video_rotated ? 13'd3 : 13'd4) : (ar - 1'd1);
-assign VIDEO_ARY = (!ar) ? (video_rotated ? 13'd4 : 13'd3) : 13'd0;
+wire        no_trackball;       // the game has no trackball (only American Horseshoes, board 4, has one)
+
+// Aspect ratio and Scale (as in the owner's Gaiapolis / Crospang cores). The framework's video_freak (after arcade_video, below) turns the
+// two into VIDEO_ARX/ARY: with Scale Normal they pass through as they are; the integer modes replace them with the exact size in pixels
+// (bit 12 set) that the HDMI scaler should give the picture. The menu's order is the owner's; video_freak's SCALE input counts
+// 0 Normal, 1 V-Integer, 2 Narrower HV-Integer, 3 HV-Integer+ (wider), 4 HV-Integer.
+// While a vertical game is turned through the DDR3 frame buffer the scaler shows that buffer, which video_freak does not know of: Scale
+// stays Normal then (the menu entry is hidden); unrotated (horizontal games, Vertical games As is, direct video) it scales like any game.
+reg   [2:0] scale_sel;
+always @* begin
+	case (status[34:32])
+		3'd1:    scale_sel = 3'd1;   // V-Integer
+		3'd2:    scale_sel = 3'd4;   // HV-Integer
+		3'd3:    scale_sel = 3'd2;   // Narrower HV-Integer
+		3'd4:    scale_sel = 3'd3;   // HV-Integer+
+		default: scale_sel = 3'd0;   // Normal
+	endcase
+	if (video_rotated) scale_sel = 3'd0;
+end
+// Full Screen is ARX = ARY = 0 ("fill"), which has no proportions for the integer rule to size the width from: with an integer Scale the
+// screen's own proportions stand in for it, so the picture is a whole-number size in the screen's aspect
+wire        fs_int = (ar == 2'd1) && (scale_sel != 3'd0) && (HDMI_WIDTH != 12'd0) && (HDMI_HEIGHT != 12'd0);
+wire [11:0] arx    = fs_int ? HDMI_WIDTH  : (!ar) ? (video_rotated ? 12'd3 : 12'd4) : (ar - 1'd1);
+wire [11:0] ary    = fs_int ? HDMI_HEIGHT : (!ar) ? (video_rotated ? 12'd4 : 12'd3) : 12'd0;
 
 `include "build_id.v"
 localparam CONF_STR = {
 	"TaitoL;;",
 	"-;",
 	"O[122:121],Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
+	"H2O[34:32],Scale,Normal,V-Integer,HV-Integer,Narrower HV-Integer,HV-Integer+;",
 	"O[5:3],Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
-	"H0O[13],Vertical games,Rotated,As is;",
-	"O[19],BG scroll update,Live,At vblank;",
-	"O[17:16],Trackball invert,None,Horizontal,Vertical,Both;",
-	"-;",
-	"DIP;",
-	"-;",
 	"P1,CRT Adjust;",
 	"P1O[96],CRT Adjust,Off,On;",
 	"H1P1O[116:112],CRT H-Size,0,+1,+2,+3,+4,+5,+6,+7,+8,+9,+10,-12,-11,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1;",
 	"H1P1O[104:101],CRT H-Position,0,+6,+12,+18,+24,+30,+36,+42,-48,-42,-36,-30,-24,-18,-12,-6;",
 	"H1P1O[27:22],CRT V-Shift,0,+1,+2,+3,+4,+5,+6,+7,+8,+9,+10,+11,+12,+13,+14,+15,+16,+17,+18,+19,+20,+21,+22,+23,+24,+25,+26,+27,+28,+29,+30,+31,-32,-31,-30,-29,-28,-27,-26,-25,-24,-23,-22,-21,-20,-19,-18,-17,-16,-15,-14,-13,-12,-11,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1;",
+	"H0O[13],Vertical games,Rotated,As is;",
+	"H3O[17:16],Trackball invert,None,Horizontal,Vertical,Both;",
 	"-;",
-	"O[20],SDRAM read capture,Normal,Late;",
+	"DIP;",
 	"-;",
 	"R0,Reset;",
 	"J1,Button 1,Button 2,Start,Coin;",
@@ -134,7 +153,7 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 
 	.buttons(buttons),
 	.status(status),
-	.status_menumask({14'd0, ~status[96], direct_video}),     // H0: hidden with direct video; H1: the CRT Adjust amounts while it is Off
+	.status_menumask({12'd0, no_trackball, video_rotated, ~status[96], direct_video}),   // H0: hidden with direct video; H1: the CRT Adjust amounts while it is Off; H2: Scale while rotated; H3: Trackball invert but for American Horseshoes
 	.forced_scandoubler(forced_scandoubler),
 	.direct_video(direct_video),
 	.video_rotated(video_rotated),
@@ -229,7 +248,30 @@ taitol_ctrl u_ctrl (.id_flat(cfg_in_id), .idle(cfg_in_idle), .sig(sig), .in0(in0
 
 // the ROM image: MRA index 0
 wire        rom_dl = ioctl_download && (ioctl_index[7:0] == 8'd0);
-wire        dl_we  = rom_dl && ioctl_wr;
+
+// Fast load (target/mister/taitol_fastload.sv): with address= on the MRA's index-0 <rom>, Main_MiSTer puts the image into the DDR3 and
+// sends a download without data that starts with ioctl_addr = the image's length (an ordinary one starts at 0; hps_io loads ioctl_addr
+// before it raises ioctl_download). When it ends, the image is read back and pushed through the loader; the machine is held until the
+// last word is in the SDRAM. An older Main_MiSTer ignores address= and sends the image the ordinary way.
+reg         rom_dl_d = 1'b0;
+reg         fast_dl = 1'b0;
+reg  [24:0] fast_len;
+wire        fl_done, fl_we;
+wire [24:0] fl_addr;
+wire  [7:0] fl_data;
+always @(posedge clk_sys) begin
+	rom_dl_d <= rom_dl;
+	if (rom_dl && !rom_dl_d) begin fast_dl <= (ioctl_addr != 27'd0); fast_len <= ioctl_addr[24:0]; end
+	else if (fl_done) fast_dl <= 1'b0;
+end
+wire        fl_go = fast_dl && rom_dl_d && !rom_dl;              // the empty download has ended
+
+// the loader's byte input: the HPS's bytes, or the fast load's
+wire        dl_we   = (rom_dl && ioctl_wr) | fl_we;
+wire [24:0] dl_addr = fl_we ? fl_addr : ioctl_addr[24:0];
+wire  [7:0] dl_data = fl_we ? fl_data : ioctl_dout;
+wire        dl_wait;
+assign      ioctl_wait = dl_wait;
 
 wire        mem_init = ~pll_locked | RESET;
 wire        mem_ready;
@@ -252,6 +294,7 @@ wire  [1:0] g0_idx, g1_idx, gs_idx;
 wire [15:0] p_data, g0_data, g1_data, gs_data;
 wire        dl_busy;
 wire  [3:0] cfg_board;
+assign      no_trackball = (cfg_board != 4'd4);
 wire [15:0] cfg_n8;
 wire [17:0] cfg_pmask;
 wire [19:0] cfg_rmask;
@@ -266,8 +309,8 @@ wire  [7:0] sub_wdata;
 
 taitol_mem u_mem
 (
-	.clk(clk_sys), .clk_sdram(clk_sdram), .init(mem_init), .rd_late(status[20]), .ready(mem_ready),
-	.dl_we(dl_we), .dl_addr(ioctl_addr[24:0]), .dl_data(ioctl_dout), .dl_wait(ioctl_wait), .dl_busy(dl_busy),
+	.clk(clk_sys), .clk_sdram(clk_sdram), .init(mem_init), .rd_late(1'b0), .ready(mem_ready),
+	.dl_we(dl_we), .dl_addr(dl_addr), .dl_data(dl_data), .dl_wait(dl_wait), .dl_busy(dl_busy),
 	.cfg_board(cfg_board), .cfg_n8(cfg_n8), .cfg_pmask(cfg_pmask), .cfg_rmask(cfg_rmask), .cfg_rot(cfg_rot), .cfg_flags(cfg_flags),
 	.cfg_in_id(cfg_in_id), .cfg_in_idle(cfg_in_idle), .mcu_we(mcu_we), .mcu_waddr(mcu_waddr), .mcu_wdata(mcu_wdata),
 	.sub_we(sub_we), .sub_waddr(sub_waddr), .sub_wdata(sub_wdata),
@@ -289,8 +332,8 @@ wire        reset_sw = RESET | status[0] | buttons[1];
 // the machine is held while a ROM loads and until the memory is up; registered, it fans out to the whole core
 reg         mc_rst = 1'b1, vid_rst = 1'b1;
 always @(posedge clk_sys) begin
-	mc_rst  <= reset_sw | rom_dl | dl_busy | ~mem_ready | ~pll_locked;
-	vid_rst <= rom_dl | dl_busy | ~mem_ready | ~pll_locked;
+	mc_rst  <= reset_sw | rom_dl | fast_dl | dl_busy | ~mem_ready | ~pll_locked;
+	vid_rst <= rom_dl | fast_dl | dl_busy | ~mem_ready | ~pll_locked;
 end
 
 wire        ce_pix, hblank, vblank, hsync, vsync, vb_next;
@@ -302,8 +345,8 @@ wire        dbg_ovr, dbg_irq, dbg_m1, dbg_ym_wr;
 taitol_core u_core
 (
 	.clk(clk_sys), .clk_ym(clk_ym), .clk_vid(clk_vid), .rst(mc_rst), .vid_rst(vid_rst),
-	.cache_inval(rom_dl | mem_init),
-	.cfg_board(cfg_board), .cfg_pmask(cfg_pmask), .cfg_n8({1'b0, cfg_n8}), .cfg_rmask(cfg_rmask), .cfg_flags(cfg_flags), .opt_scr_latch(status[19]),
+	.cache_inval(rom_dl | fast_dl | mem_init),
+	.cfg_board(cfg_board), .cfg_pmask(cfg_pmask), .cfg_n8({1'b0, cfg_n8}), .cfg_rmask(cfg_rmask), .cfg_flags(cfg_flags), .opt_scr_latch(1'b0),
 	.p_req(p_req), .p_addr(p_addr), .p_wr(p_wr), .p_idx(p_idx), .p_data(p_data), .p_done(p_done),
 	.s_req(s_req), .s_addr(s_addr), .s_wr(s_wr), .s_idx(s_idx), .s_data(s_data), .s_done(s_done),
 	.a_req(a_req), .a_addr(a_addr), .a_wr(a_wr), .a_idx(a_idx), .a_data(a_data), .a_done(a_done),
@@ -360,6 +403,7 @@ taitol_crt_adjust #(.SYS_HZ(26_661_120), .PIX_DIV(4), .HTOTAL(424), .VTOTAL(262)
 	.active()
 );
 
+wire vga_de_av;
 arcade_video #(.WIDTH(320), .DW(24), .GAMMA(1)) arcade_video
 (
 	.clk_video(clk_vid),
@@ -373,12 +417,23 @@ arcade_video #(.WIDTH(320), .DW(24), .GAMMA(1)) arcade_video
 	.CLK_VIDEO(CLK_VIDEO),
 	.CE_PIXEL(CE_PIXEL),
 	.VGA_R(VGA_R), .VGA_G(VGA_G), .VGA_B(VGA_B),
-	.VGA_HS(VGA_HS), .VGA_VS(VGA_VS), .VGA_DE(VGA_DE),
+	.VGA_HS(VGA_HS), .VGA_VS(VGA_VS), .VGA_DE(vga_de_av),
 	.VGA_SL(VGA_SL),
 
 	.fx(status[5:3]),
 	.forced_scandoubler(forced_scandoubler),
 	.gamma_bus(gamma_bus)
+);
+
+// Scale: integer scaling on the HDMI scaler (framework module; it measures the picture's rows and width from the finished stream,
+// scandoubler and CRT Adjust included, and works out the size from HDMI_WIDTH/HEIGHT). Crop is unused. With Normal it only delays VGA_DE
+// by a few clocks and passes the aspect ratio through. screen_rotate takes arcade_video's own DE, in step with its pixels.
+video_freak video_freak
+(
+	.CLK_VIDEO(CLK_VIDEO), .CE_PIXEL(CE_PIXEL), .VGA_VS(VGA_VS),
+	.HDMI_WIDTH(HDMI_WIDTH), .HDMI_HEIGHT(HDMI_HEIGHT),
+	.VGA_DE(VGA_DE), .VIDEO_ARX(VIDEO_ARX), .VIDEO_ARY(VIDEO_ARY),
+	.VGA_DE_IN(vga_de_av), .ARX(arx), .ARY(ary), .CROP_SIZE(12'd0), .CROP_OFF(5'd0), .SCALE(scale_sel)
 );
 
 // ROT90 / ROT270 sets (Play Girls, American Horseshoes, Fighting Hawk, Evil Stone ...: the ROM image carries MAME's rotation)
@@ -391,12 +446,32 @@ wire flip       = (cfg_rot == 2'd2);
 screen_rotate screen_rotate
 (
 	.CLK_VIDEO(CLK_VIDEO), .CE_PIXEL(CE_PIXEL),
-	.VGA_R(VGA_R), .VGA_G(VGA_G), .VGA_B(VGA_B), .VGA_HS(VGA_HS), .VGA_VS(VGA_VS), .VGA_DE(VGA_DE),
+	.VGA_R(VGA_R), .VGA_G(VGA_G), .VGA_B(VGA_B), .VGA_HS(VGA_HS), .VGA_VS(VGA_VS), .VGA_DE(vga_de_av),
 	.rotate_ccw(rotate_ccw), .no_rotate(no_rotate), .flip(flip), .video_rotated(video_rotated),
 	.FB_EN(FB_EN), .FB_FORMAT(FB_FORMAT), .FB_WIDTH(FB_WIDTH), .FB_HEIGHT(FB_HEIGHT), .FB_BASE(FB_BASE), .FB_STRIDE(FB_STRIDE),
 	.FB_VBL(FB_VBL), .FB_LL(FB_LL),
-	.DDRAM_CLK(DDRAM_CLK), .DDRAM_BUSY(DDRAM_BUSY), .DDRAM_BURSTCNT(DDRAM_BURSTCNT), .DDRAM_ADDR(DDRAM_ADDR),
-	.DDRAM_DIN(DDRAM_DIN), .DDRAM_BE(DDRAM_BE), .DDRAM_WE(DDRAM_WE), .DDRAM_RD(DDRAM_RD)
+	.DDRAM_CLK(DDRAM_CLK), .DDRAM_BUSY(DDRAM_BUSY), .DDRAM_BURSTCNT(rot_burst), .DDRAM_ADDR(rot_addr),
+	.DDRAM_DIN(DDRAM_DIN), .DDRAM_BE(DDRAM_BE), .DDRAM_WE(rot_we), .DDRAM_RD()
+);
+
+// The DDR3 port (on the video clock, screen_rotate's DDRAM_CLK): the fast load owns it while it reads the image back, the rotated
+// frame buffer the rest of the time. screen_rotate's writes are single beats that do not wait for DDRAM_BUSY; the few it makes while
+// the port is the fast load's (the machine is held then) are dropped.
+wire  [7:0] rot_burst, fl_burst;
+wire [28:0] rot_addr, fl_ddr_addr;
+wire        rot_we, fl_rd, fl_own;
+assign DDRAM_BURSTCNT = fl_own ? fl_burst : rot_burst;
+assign DDRAM_ADDR     = fl_own ? fl_ddr_addr : rot_addr;
+assign DDRAM_WE       = rot_we & ~fl_own;
+assign DDRAM_RD       = fl_own & fl_rd;
+
+taitol_fastload u_fastload
+(
+	.clk(clk_sys), .rst(mem_init), .go(fl_go), .cancel(rom_dl), .len(fast_len), .done(fl_done),
+	.dl_we(fl_we), .dl_addr(fl_addr), .dl_data(fl_data), .dl_wait(dl_wait),
+	.clk_ddr(clk_vid), .own(fl_own),
+	.DDRAM_BUSY(DDRAM_BUSY), .DDRAM_BURSTCNT(fl_burst), .DDRAM_ADDR(fl_ddr_addr), .DDRAM_DOUT(DDRAM_DOUT),
+	.DDRAM_DOUT_READY(DDRAM_DOUT_READY), .DDRAM_RD(fl_rd)
 );
 
 ///////////////////////   LED   ///////////////////////

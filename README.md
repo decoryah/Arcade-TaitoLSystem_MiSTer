@@ -13,12 +13,29 @@ machine and compared with MAME 0.289 frame by frame (see "Status"). The memory s
 caches) is that of the owner's MCatAdv core; the sound chips, the MC6805 and the CRT Adjust module are other people's, with
 their licences (see "Credits").
 
-No ROMs or other copyrighted data are in this repository; you supply your own MAME romsets.
+No ROMs are in this repository (the title screens in `docs/titles/` are MAME screenshots); you supply your own MAME romsets.
+
+## Games
+
+The thirteen titles: their title or attract screens, as MAME 0.289 draws them.
+
+|  |  |  |  |
+|---|---|---|---|
+| ![Plotting](docs/titles/plotting.png) | ![Puzznic](docs/titles/puzznic.png) | ![Palamedes](docs/titles/palamed.png) | ![Tube-It](docs/titles/tubeit.png) |
+| Plotting | Puzznic | Palamedes | Tube-It |
+| ![Cuby Bop](docs/titles/cubybop.png) | ![Kuri Kinton](docs/titles/kurikint.png) | ![Champion Wrestler](docs/titles/champwr.png) | ![Raimais](docs/titles/raimais.png) |
+| Cuby Bop | Kuri Kinton | Champion Wrestler | Raimais |
+
+|  |  |  |  |  |
+|---|---|---|---|---|
+| ![Play Girls](docs/titles/plgirls.png) | ![Play Girls 2](docs/titles/plgirls2.png) | ![American Horseshoes](docs/titles/horshoes.png) | ![Evil Stone](docs/titles/evilston.png) | ![Fighting Hawk](docs/titles/fhawk.png) |
+| Play Girls | Play Girls 2 | American Horseshoes | Evil Stone | Fighting Hawk |
 
 ## Status
 
-**On a real MiSTer** (a CRT on the analog output and a RetroTINK 4K on Direct Video): all 35 sets and the three homebrew games boot and play. The DIP switches work, Flip Screen and
-Service Mode included; the sound is good in Champion Wrestler (ADPCM voices), Kuri Kinton, Evil Stone, Fighting Hawk and Raimais; CRT Adjust works.
+**On a real MiSTer** (a CRT on the analog output and a RetroTINK 4K on Direct Video): all 35 sets and the four homebrew games boot and play. The DIP switches work, Flip Screen and
+Service Mode included; the sound is good in Champion Wrestler (ADPCM voices), Kuri Kinton, Evil Stone, Fighting Hawk and Raimais; CRT Adjust,
+fast loading, the Scale option and the named buttons work.
 
 **In simulation** (Verilator, the real programs through the SDRAM controller and a behavioural chip), against MAME 0.289's dumps and
 snapshots: Plotting, Puzznic (with its MC68705), the Palamedes family, Cachat's bitmap mode, Play Girls, American Horseshoes with its
@@ -37,10 +54,11 @@ The zip of a GitHub release unpacks over the root of the SD card. By hand:
 
        /media/fat/_Arcade/<13 MRAs, one a title>.mra
        /media/fat/_Arcade/_alternatives/_<Title>/<other version>.mra
-       /media/fat/_Arcade/_homebrew/<3 homebrew MRAs>.mra          (see "Homebrew games": their ROMs are not included)
+       /media/fat/_Arcade/_homebrew/<4 homebrew MRAs>.mra          (see "Homebrew games": their ROMs are not included)
        /media/fat/_Arcade/cores/taitol_YYYYMMDD.rbf
 2. Put your MAME 0.289 romsets in `/media/fat/games/mame/` (the merged set, or the split sets next to their parents, see the table).
-3. Start a game from the Arcade menu. The ROM takes a few seconds to load.
+3. Start a game from the Arcade menu. With a recent Main_MiSTer the ROM loads in a moment (**fast loading**: the MRAs' `address=` makes Main
+   put the whole image into the DDR3, and the core reads it from there); an older Main_MiSTer sends it the ordinary way, in a few seconds.
 
 The 35 MRAs (`tools/make_mra.py` writes them from MAME's ROM lists and `-listxml` DIP switches; `tools/mra_verify.py` checks that
 each builds the same image as the one the simulations ran): one MRA a title is in `mra/`, the other versions of the title in
@@ -76,17 +94,23 @@ of a title. Tube-It is the title of the Cachat group (MAME's parent, Cachat (Jap
 
 ### Homebrew games
 
-Three homebrew games for the Plotting board run too. They have MRAs in `mra/_homebrew/` (`_Arcade/_homebrew/` on the card) and are not MAME sets:
+Four homebrew games for the Plotting board run too. They have MRAs in `mra/_homebrew/` (`_Arcade/_homebrew/` on the card) and are not MAME sets:
+
+|  |  |  |  |
+|---|---|---|---|
+| ![Sokoban LE](docs/titles/sokoban.png) | ![SQIJ 2018](docs/titles/sqij.png) | ![The Speccies 2](docs/titles/speccies2.png) | ![Jetpac](docs/titles/jetpac.png) |
+| Sokoban LE | SQIJ 2018 | The Speccies 2 | Jetpac |
 
 | MRA | Author | Rename the author's `plotting.zip` to | Download |
 |---|---|---|---|
 | Sokoban LE | Adrian Smethurst (2015) | `sokobanle.zip` | `sokoban_le_plotting.zip` in the [UKVAC thread](https://www.ukvac.com/forum/threads/new-game-release-sokoban-le-for-taito-l-system.36006/) |
 | SQIJ 2018 | Sokurah, Tardis Remakes (v1.5) | `sqij.zip` | [tardis.dk](https://tardis.dk/wordpress/?page_id=1695) |
 | The Speccies 2 | Sokurah, Tardis Remakes (v1.0) | `speccies2.zip` | [tardis.dk](https://tardis.dk/wordpress/?page_id=1359) |
+| Jetpac | Sokurah, Tardis Remakes (v1.0, 2026) | `jetpac.zip` | [tardis.dk](https://tardis.dk/wordpress/?page_id=1930) (`Jetpac_for_LSystem_Remember_2_Rename.zip`) |
 
 The authors ask that their games are distributed only from their own pages, so the ROMs are not in this repository or in its releases. Download the game's zip (it is
 called `plotting.zip` because it replaces Plotting in MAME), rename it as in the table and put it in `/media/fat/games/mame/`. The MRAs find the ROMs by name and were
-made for these versions of the files. The DIP switches in the menu are the Plotting board's; a game may use only some of them. `tools/make_mra.py` writes these MRAs
+made for these versions of the files. They have no DIP switch menu: the games read the switches but use none of them (no coinage, difficulty or service mode). `tools/make_mra.py` writes these MRAs
 (`HOMEBREW` table) and `tools/mra_verify.py` checks that each builds the program and graphics regions MAME loads from the same files.
 
 ## OSD options
@@ -94,16 +118,17 @@ made for these versions of the files. The DIP switches in the menu are the Plott
 | Option | Values | |
 |---|---|---|
 | Aspect ratio | Original, Full Screen, [ARC1], [ARC2] | Original is 4:3 (3:4 for the vertical games when rotated) |
+| Scale | Normal, V-Integer, HV-Integer, Narrower HV-Integer, HV-Integer+ | integer scaling on the HDMI scaler (the framework's `video_freak`); hidden while a vertical game is rotated through the frame buffer, which it cannot measure |
 | Scandoubler Fx | None, HQ2x, CRT 25/50/75 % | |
-| Vertical games | Rotated, As is | the vertical sets are turned by the scaler (`screen_rotate`, ROT270 counter-clockwise as in MAME); hidden with Direct Video, which never rotates |
-| BG scroll update | Live, At vblank | a leftover test; keep Live |
-| Trackball invert | None, Horizontal, Vertical, Both | American Horseshoes (mouse or joystick) |
-| DIP switches | per game | the MRA's switches (coinage, difficulty, Flip Screen, Service Mode, ...); the game reads them at start-up: change them and press Reset |
 | CRT Adjust | Off, On | page of rmonic79's module: H-Size -12..+10 %, H-Position -48..+42 pixels (steps of 6), V-Shift -32..+31 lines; Off is a true bypass |
-| SDRAM read capture | Normal, Late | for a module that answers slowly; try it if the picture is garbage |
+| Vertical games | Rotated, As is | the vertical sets are turned by the scaler (`screen_rotate`, ROT270 counter-clockwise as in MAME); hidden with Direct Video, which never rotates |
+| Trackball invert | None, Horizontal, Vertical, Both | American Horseshoes only (mouse or joystick); hidden for the other games |
+| DIP switches | per game | the MRA's switches (coinage, difficulty, Flip Screen, Service Mode, ...); the game reads them at start-up: change them and press Reset |
 | Reset | | restarts the machine |
 
-Controls: joystick, Button 1, Button 2, Start, Coin (the games' own button use differs; the wiring of each set comes from MAME's driver). Keyboard:
+Controls: joystick, two buttons, Start, Coin; the wiring of each set comes from MAME's driver. The MRAs name the buttons after what they do
+(Plotting: Fire; Puzznic: Grab, Retry; Palamedes: Throw, Change Die; Kuri Kinton: Punch/Kick, Jump; Fighting Hawk: Fire, Bomb; American Horseshoes:
+Angle, Grip; Champion Wrestler: Punch, Kick; ...); where no source names a button it keeps its generic name (Evil Stone, Raimais, Play Girls 2); a second button the game ignores is left out (Cuby Bop, Play Girls, LA Girl, Tube-It, Cachat). Keyboard:
 1/2 start, 5/6 coin, 9 service. American Horseshoes plays with the mouse (a trackball) or the joystick as a slow ball; mouse buttons are buttons 1 and 2.
 The Service Mode DIP switch (OSD, then Reset) opens a game's test mode (Cuby Bop, a location test, has none: its screen stays black in MAME too).
 
@@ -171,7 +196,7 @@ the repository; `tools/paths.py` says where the tools look for them and for `wor
 | `releases/` | the RBF of the release with the fitter's and timing analyser's summaries |
 | `tools/` | MRA writer / verifier, ROM-image builder, reference renderer, MAME dump and comparison scripts (Python, Lua) |
 | `sim/` | Verilator benches |
-| `docs/` | `status.md` (results, hardware tests, open points), `hardware.md` (the hardware map) |
+| `docs/` | `status.md` (results, hardware tests, open points), `hardware.md` (the hardware map), `titles/` (the title screens above, from MAME) |
 
 ## License
 

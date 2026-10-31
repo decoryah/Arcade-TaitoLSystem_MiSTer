@@ -94,7 +94,8 @@ Direct Video the two are fed the very same stream.
 | 261007 | **the shaking is gone** (the fix below). CRT Adjust works |
 | 20261005 | 261007 plus a longer V-Shift (-32..+31 lines) and the rotation direction of the HDMI scaler path put back to what MAME's orientation says. Tested by the owner on the CRT and the RetroTINK 4K (Direct Video); the scaler rotation path (Direct Video off) was not part of that test |
 | 20261006 | 20261005 plus Raimais with its YM2610, the other versions of Kuri Kinton, Fighting Hawk and Champion Wrestler (10 sets), and a third PLL output for the YM2610. Tested by the owner on the CRT and the RetroTINK 4K: Raimais and the other new sets work. Evil Stone has no sound (reported by the owner afterwards) |
-| 20261007 (this release) | 20261006 plus **Evil Stone's sound** (the fix below) and MRAs for three homebrew games (Sokoban LE, SQIJ 2018, The Speccies 2). Tested by the owner on the MiSTer: Evil Stone's sound and the three homebrew games work |
+| 20261007 | 20261006 plus **Evil Stone's sound** (the fix below) and MRAs for three homebrew games (Sokoban LE, SQIJ 2018, The Speccies 2). Tested by the owner on the MiSTer: Evil Stone's sound and the three homebrew games work |
+| 20261031 (this release) | 20261007 plus fast loading (the ROM image through the DDR3), the Scale option for HDMI, real button names in the MRAs, the BG scroll and SDRAM capture options removed, the YM2203 crackle of the first test build fixed (timing constraints), the screen enable taken once a frame (Jetpac's top lines), Jetpac as a fourth homebrew game and no DIP menu for the homebrew games. Tested by the owner on the CRT and the RetroTINK 4K: everything works |
 
 **The random shaking was a real bug in the raster-to-machine event crossing** (found from two phone videos of Puzznic and Cachat). For a few seconds at
 a time the picture striped (alternate lines from the wrong place), streaked (grass colours in the sky) or *rolled vertically* (the HUD at the bottom of
@@ -227,6 +228,21 @@ Notes: the Sokoban LE zip has no PLD file (`gal16v8-b86-04.bin`), which MAME ins
 ROM (`mc68705p3.ic4`, for Puzznic boards) that the Plotting board does not use and the MRA does not load. Sokoban LE also exists for Puzznic and Play Girls boards, and there is a four-in-one multi-cart: not covered.
 **Tried on a MiSTer by the owner: all three work.**
 
+**Jetpac** (Sokurah, Tardis Remakes, v1.0, 2026; release 20261031) is a fourth: the same replacement `plotting.zip` (`ic10` 61,440 bytes), `jetpac.zip` in the MRA, image identical
+to MAME's regions (`mra_verify.py`). Against MAME it is **not frame-exact, and the cause is traced**: its intro and attract waits are `HALT` loops (e.g. `ld b,$32 / halt / djnz` at
+36EC, 150 halts or a button at 36D7, five halts per step of the attract countdown at 355A). The game enables interrupt levels 1 (line 0) and 2 (line 240). In MAME's 256-line
+screen there are 16 lines between them and the vblank handler at 003D runs longer than that, so the line-0 interrupt is taken straight after its RETI and one `HALT` takes a whole
+frame (MAME trace: two interrupts per halt). In the RTL's measured 262-line raster there are 22 lines, the handler ends first, and each interrupt wakes a `HALT`: the intro and attract
+screens advance about 1.7x as fast as in MAME (the countdown at 8A48 steps every 3 frames against MAME's 5; the RTL's first difference in the YM writes, frame 61 against MAME's 88,
+is that countdown starting a sound). **Gameplay is not affected**: the game loop (0B86) waits on the frame counter 82A6, which only the vblank handler increments (0074), once a frame
+in both. Which is right depends on the real board's interrupt sources, which are unknown (MAME: "what is really generating interrupts 0 and 1 is still to be found").
+
+**Jetpac's top lines (fixed in 20261031).** Its vblank handler clears the screen-enable bit of video register 4 (003D-004A) and sets it again when it is done (0091). The core
+applied the bit live, pixel by pixel, so on the owner's MiSTer the first four or so visible lines of gameplay were black (the top of "1UP / HI / 2UP" cut, on a CRT and on a
+RetroTINK 4K alike). The simulation's SDRAM is a little faster and the handler ends just before line 16 there, so the bench does not show it. MAME draws a frame at the start of the
+vertical blank with the bit as it is then; `taitol_video.sv` now does the same: the bit is taken as line 240 starts and holds for the next picture. Every frame of the gameplay
+simulation (100 to 1700) is identical before and after the change.
+
 ## Quartus 17.0.2 (MiSTer's toolchain)
 
 `quartus_sh --flow compile TaitoL` in the repository root: about 20 minutes on an idle machine, up to an hour with other builds running. Do not touch the
@@ -252,6 +268,7 @@ the fitter's and the timing analyser's summaries into `releases/`; `tools/packag
 * The sprite renderer overran 8 lines once (frame ~135 of the boot), when the game first runs interrupt-driven code and its sprite table briefly has ~90+
   sprites overlapping on a line (the engine needs about 570 + 45 per sprite clocks of a 4,600-clock line); none in the next 430 frames of attract and play.
   Harmless so far (the LED shows overruns).
-* Two OSD items are leftovers of the hunt for the shaking and do nothing useful now: "BG scroll update" (Live / At vblank: the BG scroll registers latched
-  with the sprite RAM) and "SDRAM read capture" (Normal / Late: for a module that answers slowly; the same item as in the owner's other cores).
+* The two OSD items left over from the hunt for the shaking, "BG scroll update" (Live / At vblank) and "SDRAM read capture" (Normal / Late), were removed
+  in 20261031: the core is fixed at Live (the scroll registers as the CPU writes them, as MAME does) and Normal. The logic behind them is still in the RTL
+  (`taitol_vmem.sv` scr_latch, `sdram_ctrl` rd_late), tied off in `TaitoL.sv`.
 * Simulation speed: about 3 s per frame without the sound chip and about 7 s with it; reaching gameplay (frame ~350) takes 15-45 minutes.

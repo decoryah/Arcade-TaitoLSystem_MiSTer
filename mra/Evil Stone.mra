@@ -39,7 +39,7 @@
 
     <buttons names="Button 1,Button 2,Start,Coin" default="A,B,Start,Select"/>
 
-    <rom index="0" zip="evilston.zip" md5="None">
+    <rom index="0" zip="evilston.zip" md5="None" address="0x32000000">
 
         <!-- maincpu -->
         <part name="c67-03.ic2" crc="53419982"/>

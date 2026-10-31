@@ -30,6 +30,7 @@ set_global_assignment -name VERILOG_FILE modules/cpu-tv80/tv80s_cen.v
 
 # MiSTer platform layer
 set_global_assignment -name SYSTEMVERILOG_FILE target/mister/taitol_mem.sv
+set_global_assignment -name SYSTEMVERILOG_FILE target/mister/taitol_fastload.sv
 set_global_assignment -name SYSTEMVERILOG_FILE target/mister/sdram_ctrl.sv
 
 # jt12 / jt03, YM2203 (GPL-3, Jose Tejada)

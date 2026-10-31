@@ -38,9 +38,9 @@
         <dip bits="15" name="Grip/Angle Select" ids="1 Button,2 Buttons"/>
     </switches>
 
-    <buttons names="Button 1,Button 2,Start,Coin" default="A,B,Start,Select"/>
+    <buttons names="Angle,Grip,Start,Coin" default="A,B,Start,Select"/>
 
-    <rom index="0" zip="horshoes.zip" md5="None">
+    <rom index="0" zip="horshoes.zip" md5="None" address="0x32000000">
 
         <!-- maincpu -->
         <part name="c47-03.ic6" crc="37e15b20"/>

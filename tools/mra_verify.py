@@ -20,7 +20,8 @@ import taitol_rom as T  # noqa: E402
 
 
 HOMEBREW = {'sokobanle': ('sokoban/sokoban_le_plotting.zip', 'hb_sokoban'), 'sqij': ('sqij/sqij_plotting.zip', 'hb_sqij'),
-            'speccies2': ('speccies2/speccies2_plotting.zip', 'hb_speccies2')}
+            'speccies2': ('speccies2/speccies2_plotting.zip', 'hb_speccies2'),
+            'jetpac': ('jetpac/Jetpac_for_LSystem_Remember_2_Rename.zip', 'hb_jetpac')}
 
 
 def verify_homebrew(f, name):

@@ -14,7 +14,7 @@ if [ -n "$NOYM" ]; then DEFS="+define+NOYM"; B="$HOME/build_taitol/system_noym";
 if [ -n "$IDEAL" ]; then DEFS="$DEFS +define+IDEAL_ROM"; fi                      # IDEAL=1: program ROM without cache or wait states (timing experiment)
 if [ -n "$BTAG" ]; then B="${B}_$BTAG"; fi                                      # BTAG=x: a build dir of its own (never touch a binary that is running)
 if [ -n "$PROF" ]; then B="${B}_prof"; PROFFLAGS="-CFLAGS -pg -LDFLAGS -pg"; fi      # PROF=1: gprof build (gmon.out in the build dir)
-mkdir -p "$B"
+mkdir -p "$B" "$(dirname "$OUT")"                                               # the output folder (the bench does not check its fopen)
 JT=../modules/jt12
 JTFILES=$(grep -o '[A-Za-z0-9_/]*\.v ' $JT/jt03.qip | sed "s|^|$JT/|" | tr '\n' ' ')
 # the YM2610 of Raimais (jt10): its wrapper and accumulator and the ADPCM-A / B engines (the rest is jt03's list; files.qip has the same)

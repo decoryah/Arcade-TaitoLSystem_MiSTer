@@ -39,7 +39,7 @@
 
     <buttons names="Button 1,Button 2,Start,Coin" default="A,B,Start,Select"/>
 
-    <rom index="0" zip="raimais.zip" md5="None">
+    <rom index="0" zip="raimais.zip" md5="None" address="0x32000000">
 
         <!-- maincpu -->
         <part name="b36_11-1.ic7" crc="f19fb0d5"/>

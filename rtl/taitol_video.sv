@@ -106,6 +106,12 @@ module taitol_video (
         s_bm  <= {s_bm[0],  bm_mode};
     end
 
+    // The screen enable is taken once a frame, as line 240 starts (before that line's interrupt reaches the Z80), and holds for the next
+    // picture: MAME draws a whole frame at the start of the vertical blank with the bit as it is then. Jetpac (homebrew) clears it in its
+    // vblank handler and sets it again at the end; in gameplay the handler runs into the first visible lines, which a live bit blanked.
+    logic f_en = 1'b0;
+    always_ff @(posedge clk_vid) if (ph == 2'd3 && hn == 9'd0 && vn == V_LAST + 1) f_en <= s_en[1];
+
     // ------------------------------------------------------------ line buffers
     logic [9:0]  rd_addr;                              // {bank, x}
     logic [7:0]  q_bg1, q_bg0, q_tx;
@@ -143,7 +149,7 @@ module taitol_video (
     wire [4:0] cg = {pal_rdata[7:4],  pal_rdata[13]};
     wire [4:0] cb = {pal_rdata[11:8], pal_rdata[14]};
     always_ff @(posedge clk_vid) if (ph == 2'd3) begin
-        rgb <= s_en[1] ? {cr, cr[4:2], cg, cg[4:2], cb, cb[4:2]} : 24'd0;
+        rgb <= f_en ? {cr, cr[4:2], cg, cg[4:2], cb, cb[4:2]} : 24'd0;
     end
 endmodule
 `default_nettype wire

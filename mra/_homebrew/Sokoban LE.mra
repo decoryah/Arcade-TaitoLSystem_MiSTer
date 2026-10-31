@@ -23,26 +23,12 @@
       Needs sokobanle.zip in games/mame: the author's plotting.zip (https://www.ukvac.com/forum/threads/new-game-release-sokoban-le-for-taito-l-system.36006/ - sokoban_le_plotting.zip), renamed. Parts are found by name; the released files are
       ic10 65536 bytes CRC 5959ddb4, b96-07.ic9 65536 bytes CRC 859e1ff4, b96-08.ic8 65536 bytes CRC 439a6670.
       The program (ic10) is padded with 00 to the 64 KB the board has, as MAME does; the graphics ROMs are 64 KB each.
-      DIP switches (ioctl index 254): byte 0 is MAME's DSWA, byte 1 DSWB (a 1 is MAME's default setting).
+      No DIP switches: the game reads them but uses none (Plotting's switches, service mode included, do nothing here).
     -->
-    <switches default="FF,FF" base="16">
-        <dip bits="0" name="Play Mode" ids="1 Player,2 Player"/>
-        <dip bits="1" name="Flip Screen" ids="On,Off"/>
-        <dip bits="2" name="Service Mode" ids="On,Off"/>
-        <dip bits="3" name="Demo Sounds" ids="Off,On"/>
-        <dip bits="4,5" name="Coin A" ids="4 Coins/1 Credit,3 Coins/1 Credit,2 Coins/1 Credit,1 Coin/1 Credit"/>
-        <dip bits="6,7" name="Coin B" ids="1 Coin/6 Credits,1 Coin/4 Credits,1 Coin/3 Credits,1 Coin/2 Credits"/>
-        <dip bits="8,9" name="Difficulty" ids="Hardest,Hard,Easy,Medium"/>
-        <dip bits="10" name="Unused" ids="On,Off"/>
-        <dip bits="11" name="Unused" ids="On,Off"/>
-        <dip bits="12,13" name="Wild Blocks" ids="4,3,1,2"/>
-        <dip bits="14" name="Allow Continue" ids="Off,On"/>
-        <dip bits="15" name="Unused" ids="On,Off"/>
-    </switches>
 
-    <buttons names="Button 1,Button 2,Start,Coin" default="A,B,Start,Select"/>
+    <buttons names="Undo/Select,-,Start,Coin" default="A,B,Start,Select"/>
 
-    <rom index="0" zip="sokobanle.zip" md5="None">
+    <rom index="0" zip="sokobanle.zip" md5="None" address="0x32000000">
 
         <!-- maincpu -->
         <part name="ic10"/>

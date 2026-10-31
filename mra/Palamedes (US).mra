@@ -37,9 +37,9 @@
         <dip bits="15" name="Versus Mode" ids="No,Yes"/>
     </switches>
 
-    <buttons names="Button 1,Button 2,Start,Coin" default="A,B,Start,Select"/>
+    <buttons names="Throw,Change Die,Start,Coin" default="A,B,Start,Select"/>
 
-    <rom index="0" zip="palamed.zip" md5="None">
+    <rom index="0" zip="palamed.zip" md5="None" address="0x32000000">
 
         <!-- maincpu -->
         <part name="palamedes_prg_ic6.ic6" crc="ee957b0e"/>

@@ -111,7 +111,8 @@ def dips(name):
             if v.get('default') == 'yes':
                 default[tag] |= int(v.get('value')) & mask
         ids = [vals.get(i, 'Unused') for i in range(1 << nbits)]
-        bits = ','.join(str(base + shift + i) for i in range(nbits))
+        assert mask >> shift == (1 << nbits) - 1, d.get('name')  # a field is contiguous bits
+        bits = '%d,%d' % (base + shift, base + shift + nbits - 1) if nbits > 1 else str(base + shift)  # MiSTer: "first,last" (a range)
         lines.append('        <dip bits="%s" name=%s ids=%s/>' % (bits, quoteattr(d.get('name')), quoteattr(','.join(ids))))
     return default, lines
 
@@ -164,15 +165,22 @@ def mra(name, roms, games, hb=None):
         L.append('      The program (ic10) is padded with 00 to the 64 KB the board has, as MAME does; the graphics ROMs are 64 KB each.')
     else:
         L.append('      Expects the MAME 0.289 merged romset or the split sets: parts are found by name and CRC.')
-    L.append('      DIP switches (ioctl index 254): byte 0 is MAME\'s DSWA, byte 1 DSWB (a 1 is MAME\'s default setting).')
-    L.append('    -->')
-    L.append('    <switches default="%02X,%02X" base="16">' % (default['DSWA'], default['DSWB']))
-    L.extend(diplines)
-    L.append('    </switches>')
+    if hb:
+        # the homebrew games read the switches at boot and never test them (Plotting's list would be a menu that does nothing): no
+        # <switches>, so the OSD has no DIP page and the core keeps its FF defaults
+        L.append('      No DIP switches: the game reads them but uses none (Plotting\'s switches, service mode included, do nothing here).')
+        L.append('    -->')
+    else:
+        L.append('      DIP switches (ioctl index 254): byte 0 is MAME\'s DSWA, byte 1 DSWB (a 1 is MAME\'s default setting).')
+        L.append('    -->')
+        L.append('    <switches default="%02X,%02X" base="16">' % (default['DSWA'], default['DSWB']))
+        L.extend(diplines)
+        L.append('    </switches>')
     L.append('')
-    L.append('    <buttons names="Button 1,Button 2,Start,Coin" default="A,B,Start,Select"/>')
+    b1, b2 = hb.get('buttons', ('Button 1', '-')) if hb else BUTTONS.get(name, BUTTONS.get(g['parent'], ('Button 1', 'Button 2')))
+    L.append('    <buttons names="%s,%s,Start,Coin" default="A,B,Start,Select"/>' % (b1, b2))
     L.append('')
-    L.append('    <rom index="0" zip="%s" md5="None">' % '|'.join(zips))
+    L.append('    <rom index="0" zip="%s" md5="None" address="0x32000000">' % '|'.join(zips))     # fast load (TaitoL.sv)
     for tag in ORDER:
         off, size = T.LAYOUT[tag]
         L.append('')
@@ -185,6 +193,27 @@ def mra(name, roms, games, hb=None):
     L.append('    </rom>')
     L.append('</misterromdescription>')
     return '\n'.join(L) + '\n'
+
+
+# What the two buttons do, per title (the set or its MAME parent): the MRA's <buttons> names, shown by MiSTer's input mapping. "-" is a
+# button the board does not have (Plotting's board has one). Sources: MAME's portname files (github.com/cracyc/mame-portnames: Plotting,
+# Kuri Kinton, Fighting Hawk, American Horseshoes), the Arcade Museum's control-panel listings (Puzznic, Palamedes, Tube-It, Cuby Bop,
+# Play Girls, Champion Wrestler; Palamedes' order checked in MAME: button 1 throws, button 2 changes the die). Where no source names a
+# button it keeps its generic name. Button 2 is "-" where MAME runs with and without it pressed in play stay pixel-identical (Cuby Bop,
+# Play Girls / LA Girl; Tube-It / Cachat: it only confirms the rank menu, as button 1 does).
+BUTTONS = {
+    'plotting': ('Fire', '-'),
+    'puzznic':  ('Grab', 'Retry'),
+    'palamed':  ('Throw', 'Change Die'),
+    'tubeit':   ('Rotate/Drag', '-'),
+    'cachat':   ('Rotate/Drag', '-'),
+    'cubybop':  ('Throw Ball', '-'),
+    'plgirls':  ('Shoot', '-'),
+    'horshoes': ('Angle', 'Grip'),
+    'kurikint': ('Punch/Kick', 'Jump'),
+    'fhawk':    ('Fire', 'Bomb'),
+    'champwr':  ('Punch', 'Kick'),
+}
 
 
 # The menu's title for a group of sets, where it is not MAME's parent: Tube-It is the title of the Cachat group, Cachat (Japan) its alternative.
@@ -215,6 +244,7 @@ HOMEBREW = [
     dict(setname='sokobanle', zip='sokobanle.zip', title='Sokoban LE', year='2015', company='Adrian Smethurst',
          ic10=(65536, 0x5959ddb4), ic9=(65536, 0x859e1ff4), ic8=(65536, 0x439a6670),
          url='https://www.ukvac.com/forum/threads/new-game-release-sokoban-le-for-taito-l-system.36006/ - sokoban_le_plotting.zip',
+         buttons=('Undo/Select', '-'),
          about="Sokoban LE (August 2015) by Adrian Smethurst: a port of Compiler Software's Spectrum Sokoban."),
     dict(setname='sqij', zip='sqij.zip', title='SQIJ 2018', year='2018', company='Tardis Remakes',
          ic10=(61440, 0x793c8b97), ic9=(65536, 0xc4de729b), ic8=(65536, 0x978df42d),
@@ -224,6 +254,11 @@ HOMEBREW = [
          ic10=(21993, 0x29e126ac), ic9=(65536, 0x11ed1528), ic8=(65536, 0xfcfeb89f),
          url='https://tardis.dk/wordpress/?page_id=1359',
          about='The Speccies 2 (v1.0, October 2015) by Soeren Borgquist (Sokurah), Tardis Remakes: a puzzle game, 50 levels.'),
+    dict(setname='jetpac', zip='jetpac.zip', title='Jetpac', year='2026', company='Tardis Remakes',
+         ic10=(61440, 0xf06281c4), ic9=(65536, 0x83e284a4), ic8=(65536, 0xd714c279),
+         url='https://tardis.dk/wordpress/?page_id=1930',
+         buttons=('Fire', '-'),                         # the stick's Up is the thrust (checked in MAME)
+         about="Jetpac (v1.0, October 2026) by Soeren Borgquist (Sokurah), Tardis Remakes: a port of Ultimate's ZX Spectrum game."),
 ]
 
 

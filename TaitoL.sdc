@@ -60,9 +60,14 @@ set Z80 [get_keepers {*|tv80s_cen:*|*}]
 set_multicycle_path -setup 4 -from $Z80 -to $Z80
 set_multicycle_path -hold  3 -from $Z80 -to $Z80
 
-set YM [get_registers {*|jt03:*|*}]
-set_multicycle_path -setup 4 -from $YM -to $YM
-set_multicycle_path -hold  3 -from $YM -to $YM
+# The enables themselves are NOT relaxed (as for the YM2610 below): jt12_div makes clk_en* on the falling edge, a half-cycle path to every
+# flip-flop it enables, and jt12_rst's rst_n and jt12_top's cen_reg must make it in one clock. Relaxed with the rest, as up to 20261031's
+# test build, the fitter placed clk_en 10.8 ns from the accumulator (half a clock is 5.2 ns) and the YM2203 crackled in every game.
+set YM_ALL  [get_registers {*|jt03:*|*}]
+set YM_EN   [get_registers {*|jt03:*|*jt12_div:*|clk_en* *|jt03:*|*jt12_rst:*|rst_n *|jt03:*|*jt12_top:*|cen_reg}]
+set YM_DATA [remove_from_collection $YM_ALL $YM_EN]
+set_multicycle_path -setup 4 -from $YM_DATA -to $YM_ALL
+set_multicycle_path -hold  3 -from $YM_DATA -to $YM_ALL
 
 # ==============================================================================
 # The YM2610 (jt10, Raimais) runs on the 48 MHz clock, the PLL's third output, in phase with the 96 MHz one: the two are related, edge to
@@ -75,3 +80,9 @@ set JT_EN   [get_registers {*|jt10:*|*jt12_div:*|clk_en* *|jt10:*|*jt12_rst:*|rs
 set JT_DATA [remove_from_collection $JT_ALL $JT_EN]
 set_multicycle_path -setup 4 -from $JT_DATA -to $JT_ALL
 set_multicycle_path -hold  3 -from $JT_DATA -to $JT_ALL
+
+# The ADPCM caches (rtl/taitol_cache.sv) take the YM2610's ADPCM-A / ADPCM-B sample address from the 48 MHz clock edge to edge. The cache
+# registers it (a_q) and uses its RAM output only when a_q equals the live address a clock later (`stable`), so an address that changes
+# too early for a_q's hold time only costs a clock. Hold is not checked on this one crossing (setup still is); the 20261031 fit had it at
+# -0.26 ns from the two clocks' skew.
+set_false_path -hold -from [get_registers {*|jt10:*}] -to [get_registers {*|taitol_cache:*|a_q[*]}]
