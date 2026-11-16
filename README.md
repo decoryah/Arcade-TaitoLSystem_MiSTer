@@ -35,7 +35,8 @@ The thirteen titles: their title or attract screens, as MAME 0.289 draws them.
 
 **On a real MiSTer** (a CRT on the analog output and a RetroTINK 4K on Direct Video): all 35 sets and the four homebrew games boot and play. The DIP switches work, Flip Screen and
 Service Mode included; the sound is good in Champion Wrestler (ADPCM voices), Kuri Kinton, Evil Stone, Fighting Hawk and Raimais; CRT Adjust,
-fast loading, the Scale option and the named buttons work.
+fast loading, the Scale option and the named buttons work. The Z80's R register counts as on the real chip, so the games that take random numbers from it
+(Kuri Kinton's enemies, Fighting Hawk, Raimais) vary as in the arcade.
 
 **In simulation** (Verilator, the real programs through the SDRAM controller and a behavioural chip), against MAME 0.289's dumps and
 snapshots: Plotting, Puzznic (with its MC68705), the Palamedes family, Cachat's bitmap mode, Play Girls, American Horseshoes with its

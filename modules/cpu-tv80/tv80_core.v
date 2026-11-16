@@ -97,9 +97,7 @@ module tv80_core (/*AUTOARG*/
   reg [7:0]     ACC, F;
   reg [7:0]     Ap, Fp;
   reg [7:0]     I;
-`ifdef TV80_REFRESH
-  reg [7:0]     R;
-`endif
+  reg [7:0]     R;                // taitol: always kept, games read it as a random number (LD A,R); only the refresh bus cycle needs TV80_REFRESH
   reg [15:0]    SP, PC;
   reg [7:0]     RegDIH;
   reg [7:0]     RegDIL;
@@ -396,9 +394,7 @@ module tv80_core (/*AUTOARG*/
           Ap <= `TV80DELAY 8'hFF;
           Fp <= `TV80DELAY 8'hFF;
           I <= `TV80DELAY 0;
-          `ifdef TV80_REFRESH
           R <= `TV80DELAY 0;
-          `endif
           SP <= `TV80DELAY 16'hFFFF;
           Alternate <= `TV80DELAY 1'b0;
 
@@ -444,14 +440,14 @@ module tv80_core (/*AUTOARG*/
                   // mcycle == 1 && tstate == 1, 2, || 3
                   if (tstate[2] && wait_n == 1'b1 ) 
                     begin
-                      `ifdef TV80_REFRESH
                       if (Mode < 2 ) 
                         begin
+                          `ifdef TV80_REFRESH
                           A[7:0] <= `TV80DELAY R;
                           A[15:8] <= `TV80DELAY I;
+                          `endif
                           R[6:0] <= `TV80DELAY R[6:0] + 1;
                         end
-                      `endif
                       if (Jump == 1'b0 && Call == 1'b0 && NMICycle == 1'b0 && IntCycle == 1'b0 && ~ (Halt_FF == 1'b1 || Halt == 1'b1) ) 
                         begin
                           PC <= `TV80DELAY PC16;
@@ -753,14 +749,10 @@ module tv80_core (/*AUTOARG*/
                         
                         2'b01 :
                           begin
-                            `ifdef TV80_REFRESH
                             ACC <= `TV80DELAY R;
-                            `else
-                            ACC <= `TV80DELAY 0;
-                            `endif
                             F[Flag_P] <= `TV80DELAY IntE_FF2;
-			    F[Flag_Z] <= (I == 0);
-			    F[Flag_S] <= I[7];
+			    F[Flag_Z] <= (R == 0);
+			    F[Flag_S] <= R[7];
 			    F[Flag_H] <= 0;
 			    F[Flag_N] <= 0; 
                           end
@@ -768,12 +760,8 @@ module tv80_core (/*AUTOARG*/
                         2'b10 :
                           I <= `TV80DELAY ACC;
 
-                        `ifdef TV80_REFRESH                        
                         default :
                           R <= `TV80DELAY ACC;
-                        `else
-                        default : ;
-                        `endif                        
                       endcase
                     end
                 end // if (tstate == 3 )

@@ -39,7 +39,7 @@ frame compared.
 | cubybop | 3 | identical (168 VRAM bytes at 360 for one frame) |
 | palamed, palamedj, tubeit | 3 | attract / title **match at frame 300**; after the coin they are not frame-exact (see below). Tube-It's rank-select screen is the same picture with the mascot's animation one step apart |
 | cachat | 3 + bitmap mode | frame 300 (the bitmap-mode intro) **identical, picture drawn by the RTL's own bitmap path** and state including the 128 KB bitmap RAM; 331 is the palette fade one frame apart (6,565 px; the state-rendered picture differs by the same count, so the display path agrees with the reference renderer); 360-560 differ only in palette / sprite animation phase (Palamedes-class timing) |
-| kurikint (2 Z80s, YM2203 on the second) | 5 | identical at 300, 331, 360; 420 differs by 2 px; 500 / 560 show the same demo scene with the scroll a few pixels apart (the two CPUs and MAME's coarse scheduling quantum drift) |
+| kurikint (2 Z80s, YM2203 on the second) | 5 | identical at 300, 331, 360; 420 differs by 2 px; 500 / 560 show the same demo scene with the scroll a few pixels apart (the two CPUs and MAME's coarse scheduling quantum drift). First stage of a game (coin 1100, start 1130): the same picture as MAME up to the first fight; since the R fix the same kind of enemies come out |
 | evilston (2 Z80s) | 6 | identical at 300, 331, 360 (VRAM 418 B), 420, 560; 32 px at 500 |
 | fhawk (3 Z80s, ROT270, sound chip stubbed) | 7 | identical at 300, 360, 500, 560; one-frame transients at 331 (230 px) and 420 (1,024 px) |
 | champwr (3 Z80s, no ADPCM) | 8 | **identical at all six frames** |
@@ -95,7 +95,8 @@ Direct Video the two are fed the very same stream.
 | 20261005 | 261007 plus a longer V-Shift (-32..+31 lines) and the rotation direction of the HDMI scaler path put back to what MAME's orientation says. Tested by the owner on the CRT and the RetroTINK 4K (Direct Video); the scaler rotation path (Direct Video off) was not part of that test |
 | 20261006 | 20261005 plus Raimais with its YM2610, the other versions of Kuri Kinton, Fighting Hawk and Champion Wrestler (10 sets), and a third PLL output for the YM2610. Tested by the owner on the CRT and the RetroTINK 4K: Raimais and the other new sets work. Evil Stone has no sound (reported by the owner afterwards) |
 | 20261007 | 20261006 plus **Evil Stone's sound** (the fix below) and MRAs for three homebrew games (Sokoban LE, SQIJ 2018, The Speccies 2). Tested by the owner on the MiSTer: Evil Stone's sound and the three homebrew games work |
-| 20261031 (this release) | 20261007 plus fast loading (the ROM image through the DDR3), the Scale option for HDMI, real button names in the MRAs, the BG scroll and SDRAM capture options removed, the YM2203 crackle of the first test build fixed (timing constraints), the screen enable taken once a frame (Jetpac's top lines), Jetpac as a fourth homebrew game and no DIP menu for the homebrew games. Tested by the owner on the CRT and the RetroTINK 4K: everything works |
+| 20261031 | 20261007 plus fast loading (the ROM image through the DDR3), the Scale option for HDMI, real button names in the MRAs, the BG scroll and SDRAM capture options removed, the YM2203 crackle of the first test build fixed (timing constraints), the screen enable taken once a frame (Jetpac's top lines), Jetpac as a fourth homebrew game and no DIP menu for the homebrew games. Tested by the owner on the CRT and the RetroTINK 4K: everything works |
+| 20261116 (this release) | 20261031 plus the Z80's R register (the fix below): Kuri Kinton's enemies no longer all shoot, and the games that take a random number from R (Kuri Kinton, Fighting Hawk, Raimais and others) are no longer the same every time. Tested by the owner on the MiSTer: everything works |
 
 **The random shaking was a real bug in the raster-to-machine event crossing** (found from two phone videos of Puzznic and Cachat). For a few seconds at
 a time the picture striped (alternate lines from the wrong place), streaked (grass colours in the sky) or *rolled vertically* (the HUD at the bottom of
@@ -242,6 +243,16 @@ applied the bit live, pixel by pixel, so on the owner's MiSTer the first four or
 RetroTINK 4K alike). The simulation's SDRAM is a little faster and the handler ends just before line 16 there, so the bench does not show it. MAME draws a frame at the start of the
 vertical blank with the bit as it is then; `taitol_video.sv` now does the same: the bit is taken as line 240 starts and holds for the next picture. Every frame of the gameplay
 simulation (100 to 1700) is identical before and after the change.
+
+**The Z80's R register (fixed in 20261116).** Players reported that in Kuri Kinton the enemies were all the shooting kind, whatever the difficulty, unlike the arcade and
+MAME. tv80 keeps the R (refresh) register only when `TV80_REFRESH` is defined, and the core did not define it, so `LD A,R` always gave 0. Kuri Kinton takes its random
+numbers from R in about 50 places (e.g. 1DD3 `ld a,r / bit 0,a`), Raimais in about 40, Fighting Hawk in about 20, and a few others once or twice. The simulation of
+Kuri Kinton's first stage was identical to MAME's until the first fight (frame 1860), where MAME's first enemy is a green fighter and the core's a blue gunman.
+`tv80_core.v` now always keeps R: it counts on every M1 (opcode fetches, HALT's NOPs and interrupt acknowledges, bits 0-6), `LD R,A` sets it and `LD A,R` reads it with
+the flags from R (the core had taken S and Z from I). The refresh bus cycle itself is still left out. With the fix the first fight has green fighters as in MAME. The
+exact values depend on the instruction count since reset, so after a game reads R the RTL and MAME no longer run frame-identically; that is expected.
+Fighting Hawk's music stopping after a death (also reported) is the game: MAME's YM2203 has no key-ons for the same 1-2 seconds after each death, and the core's
+log matches it second by second.
 
 ## Quartus 17.0.2 (MiSTer's toolchain)
 
